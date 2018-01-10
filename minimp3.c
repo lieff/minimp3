@@ -1637,6 +1637,7 @@ void mp3dec_init(mp3dec_t *dec)
 
 #ifdef minimp3_test
 #include <stdio.h>
+#include <math.h>
 
 static char *wav_header(int hz, int ch, int bips, int data_bytes)
 {
@@ -1655,11 +1656,12 @@ static char *wav_header(int hz, int ch, int bips, int data_bytes)
     return hdr;
 }
 
-void decode_file(FILE *file_mp3, FILE *file_wav)
+static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
 {
     static mp3dec_t mp3d = { 0, };
     mp3dec_frame_info_t info;
-    int i, data_bytes, samples, nbuf = 0;
+    int i, data_bytes, samples, total_samples, nbuf = 0;
+    double MSE = 0.0, MSEtemp, psnr;
     unsigned char buf[4096];
 
     mp3dec_init(&mp3d);
@@ -1668,18 +1670,36 @@ void decode_file(FILE *file_mp3, FILE *file_wav)
 
     do
     {
-        short pcm[2*1152];
+        short pcm[2*1152], pcm2[2*1152];
         nbuf += fread(buf + nbuf, 1, sizeof(buf) - nbuf, file_mp3);
         samples = mp3dec_decode_frame(&mp3d, buf, nbuf, pcm, &info);
         if (samples)
         {
+            fread(pcm2, 1, 2*info.channels*samples, file_ref);
+            total_samples += samples*info.channels;
+            for (i = 0; i < samples*info.channels; i++)
+            {
+                MSEtemp = abs((int)pcm[i] - (int)pcm2[i]);
+                MSE += MSEtemp*MSEtemp;
+            }
             fwrite(pcm, samples, 2*info.channels, file_wav);
-        } else if (0 == info.frame_bytes) info.frame_bytes = nbuf;
-
+        }
         memmove(buf, buf + info.frame_bytes, nbuf -= info.frame_bytes);
-    } while (nbuf);
+    } while (info.frame_bytes);
 
-    data_bytes = ftell(file_wav) - 44;
+    MSE /= total_samples;
+    if (0 == MSE)
+        psnr = 99.0;
+    else
+        psnr = 10.0*log10(((double)0x7fff*0x7fff)/MSE);
+    printf("PSNR=%f\n", psnr);
+    if (psnr < 96)
+    {
+        printf("PSNR compliance failed\n");
+        exit(1);
+    }
+
+    //data_bytes = ftell(file_wav) - 44;
     //rewind(file_wav);
     //fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_wav);
     fclose(file_wav);
@@ -1690,12 +1710,13 @@ int main(int argc, char *argv[])
 {
     char *input_file_name  = (argc > 1) ? argv[1] : NULL;
     char *output_file_name = (argc > 2) ? argv[2] : NULL;
-    if (!input_file_name || !output_file_name)
+    char *ref_file_name    = (argc > 3) ? argv[3] : NULL;
+    if (!input_file_name || !output_file_name || !ref_file_name)
     {
         printf("error: no file names given\n");
         return 1;
     }
-    decode_file(fopen(input_file_name, "rb"), fopen(output_file_name, "wb"));
+    decode_file(fopen(input_file_name, "rb"), fopen(output_file_name, "wb"), fopen(ref_file_name, "rb"));
     return 0;
 }
 #endif
