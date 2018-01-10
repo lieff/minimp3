@@ -1,0 +1,10 @@
+language: c
+
+os:
+    - linux
+
+compiler:
+    - gcc
+
+script:
+    - gcc -Dminimp3_test -O2 -g -o minimp3 minimp3.c 
