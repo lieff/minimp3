@@ -1660,8 +1660,8 @@ static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
 {
     static mp3dec_t mp3d = { 0, };
     mp3dec_frame_info_t info;
-    int i, data_bytes, samples, total_samples = 0, nbuf = 0;
-    double MSE = 0.0, MSEtemp, psnr;
+    int i, data_bytes, samples, total_samples = 0, nbuf = 0, maxdiff = 0;
+    double MSE = 0.0, psnr;
     unsigned char buf[4096];
 
     mp3dec_init(&mp3d);
@@ -1679,7 +1679,9 @@ static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
             total_samples += samples*info.channels;
             for (i = 0; i < samples*info.channels; i++)
             {
-                MSEtemp = abs((int)pcm[i] - (int)pcm2[i]);
+                int MSEtemp = abs((int)pcm[i] - (int)pcm2[i]);
+                if (MSEtemp > maxdiff)
+                    maxdiff = MSEtemp;
                 MSE += MSEtemp*MSEtemp;
             }
             fwrite(pcm, samples, 2*info.channels, file_wav);
@@ -1692,7 +1694,7 @@ static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
         psnr = 99.0;
     else
         psnr = 10.0*log10(((double)0x7fff*0x7fff)/MSE);
-    printf("samples=%d PSNR=%f\n", total_samples, psnr);
+    printf("samples=%d max_diff=%d PSNR=%f\n", total_samples, maxdiff, psnr);
     if (psnr < 96)
     {
         printf("PSNR compliance failed\n");
