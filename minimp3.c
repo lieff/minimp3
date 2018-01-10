@@ -40,7 +40,7 @@
 #define MIN(a,b)                    ((a) > (b) ? (b) : (a))
 #define MAX(a,b)                    ((a) < (b) ? (b) : (a))
 
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(__i386__) || defined(__x86_64__)
 #   include <immintrin.h>
 #   define HAVE_SSE 1
 #   define HAVE_SIMD 1
@@ -55,6 +55,31 @@
 #   define VMUL_S(x, s)  _mm_mul_ps(x, _mm_set1_ps(s))
 #   define VREV(x) _mm_shuffle_ps(x, x, _MM_SHUFFLE(0, 1, 2, 3))
 typedef __m128 f4;
+#ifndef _MSC_VER
+static __inline__ __attribute__((always_inline)) void __cpuid(int CPUInfo[], const int InfoType)
+{
+#if defined(__PIC__)
+    __asm__ __volatile__(
+#if defined(__x86_64__)
+        "push %%rbx\n"
+        "cpuid\n"
+        "xchgl %%ebx, %1\n"
+        "pop  %%rbx\n"
+#else
+        "xchgl %%ebx, %1\n"
+        "cpuid\n"
+        "xchgl %%ebx, %1\n"
+#endif
+        : "=a" (CPUInfo[0]), "=r" (CPUInfo[1]), "=c" (CPUInfo[2]), "=d" (CPUInfo[3])
+        : "a" (InfoType));
+#else
+    __asm__ __volatile__(
+        "cpuid"
+        : "=a" (CPUInfo[0]), "=b" (CPUInfo[1]), "=c" (CPUInfo[2]), "=d" (CPUInfo[3])
+        : "a" (InfoType));
+#endif
+}
+#endif
 static int have_simd()
 {
     int CPUInfo[4];
