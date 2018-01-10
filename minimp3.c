@@ -1692,7 +1692,7 @@ static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
         psnr = 99.0;
     else
         psnr = 10.0*log10(((double)0x7fff*0x7fff)/MSE);
-    printf("PSNR=%f\n", psnr);
+    printf("samples=%d PSNR=%f\n", total_samples, psnr);
     if (psnr < 96)
     {
         printf("PSNR compliance failed\n");
