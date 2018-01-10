@@ -1639,7 +1639,7 @@ void decode_file(FILE *file_mp3, FILE *file_wav)
 
     mp3dec_init(&mp3d);
 
-    fwrite(wav_header(0, 0, 0, 0), 1, 44, file_wav);
+    //fwrite(wav_header(0, 0, 0, 0), 1, 44, file_wav);
 
     do
     {
@@ -1649,13 +1649,14 @@ void decode_file(FILE *file_mp3, FILE *file_wav)
         if (samples)
         {
             fwrite(pcm, samples, 2*info.channels, file_wav);
-        }
+        } else if (0 == info.frame_bytes) info.frame_bytes = nbuf;
+
         memmove(buf, buf + info.frame_bytes, nbuf -= info.frame_bytes);
     } while (nbuf);
 
     data_bytes = ftell(file_wav) - 44;
-    rewind(file_wav);
-    fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_wav);
+    //rewind(file_wav);
+    //fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_wav);
     fclose(file_wav);
     fclose(file_mp3);
 }
