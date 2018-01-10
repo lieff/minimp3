@@ -1552,7 +1552,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, short 
     bs_t bs_frame[1];
     mp3dec_scratch_t scratch;
 
-    if (dec->header[0] == 0xff && hdr_compare(dec->header, mp3))
+    if (mp3_bytes > 4 && dec->header[0] == 0xff && hdr_compare(dec->header, mp3))
     {
         frame_size = hdr_frame_bytes(mp3, dec->free_format_bytes) + hdr_padding(mp3);
         if (frame_size != mp3_bytes && (frame_size + HDR_SIZE > mp3_bytes || !hdr_compare(mp3, mp3 + frame_size)))
