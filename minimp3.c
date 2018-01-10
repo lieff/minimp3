@@ -1660,7 +1660,7 @@ static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
 {
     static mp3dec_t mp3d = { 0, };
     mp3dec_frame_info_t info;
-    int i, data_bytes, samples, total_samples, nbuf = 0;
+    int i, data_bytes, samples, total_samples = 0, nbuf = 0;
     double MSE = 0.0, MSEtemp, psnr;
     unsigned char buf[4096];
 
