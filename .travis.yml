@@ -6,5 +6,8 @@ os:
 compiler:
     - gcc
 
+before_install:
+    - if [ $TRAVIS_OS_NAME == linux ]; then sudo apt-get install -y wget; fi
+
 script:
-    - gcc -Dminimp3_test -O2 -g -o minimp3 minimp3.c 
+    - scripts/build.sh
