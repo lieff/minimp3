@@ -22,7 +22,7 @@
 
 static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
 {
-    static mp3dec_t mp3d = { 0, };
+    static mp3dec_t mp3d;
     mp3dec_frame_info_t info;
     int i, /*data_bytes, */samples, total_samples = 0, nbuf = 0, maxdiff = 0;
     double MSE = 0.0, psnr;
