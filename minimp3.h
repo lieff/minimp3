@@ -1,5 +1,10 @@
 #pragma once
-
+/*
+    https://github.com/lieff/minimp3
+    To the extent possible under law, the author(s) have dedicated all copyright and related and neighboring rights to this software to the public domain worldwide.
+    This software is distributed without any warranty.
+    See <http://creativecommons.org/publicdomain/zero/1.0/>.
+*/
 typedef struct
 {
     int frame_bytes;
@@ -817,7 +822,7 @@ static void L3_huffman(float *dst, bs_t *bs, const L3_gr_info_t *gr_info, const 
 static void L3_midside_stereo(float *left, int n)
 {
     int i = 0;
-    float * right = left + 576;
+    float *right = left + 576;
 #if HAVE_SIMD
     if (have_simd()) for (; i < n - 3; i += 4)
     {
@@ -876,7 +881,7 @@ static void L3_stereo_process(float *left, const uint8_t *ist_pos, const uint8_t
         unsigned ipos = ist_pos[i];
         if ((int)i > max_band[i % 3] && ipos < max_pos)
         {
-            float kl,kr,s=HDR_TEST_MS_STEREO(hdr) ? 1.41421356f : 1;
+            float kl, kr, s = HDR_TEST_MS_STEREO(hdr) ? 1.41421356f : 1;
             if (HDR_TEST_MPEG1(hdr))
             {
                 kl = g_pan[2*ipos];
