@@ -738,7 +738,7 @@ static void L3_huffman(float *dst, bs_t *bs, const L3_gr_info_t *gr_info, const 
 #define CHECK_BITS      while (bs_sh >= 0) { bs_cache |= (uint32_t)*bs_next_ptr++ << bs_sh; bs_sh -= 8; }
 #define BSPOS           ((bs_next_ptr - bs->buf)*8 - 24 + bs_sh)
 
-    float one;
+    float one = 0.0f;
     int ireg = 0, big_val_cnt = gr_info->big_values;
     const uint8_t *sfb = gr_info->sfbtab;
     const uint8_t *bs_next_ptr = bs->buf + bs->pos/8;
@@ -806,7 +806,7 @@ static void L3_huffman(float *dst, bs_t *bs, const L3_gr_info_t *gr_info, const 
             break;
         }
 #define RELOAD_SCALEFACTOR  if (!--np) {np = *sfb++/2; if (!np) break; one = *scf++;}
-#define DEQ_COUNT1(s) if (leaf & (128 >> s)) {dst[s] = ((int32_t)bs_cache < 0)?-one:one; FLUSH_BITS(1)}
+#define DEQ_COUNT1(s) if (leaf & (128 >> s)) {dst[s] = ((int32_t)bs_cache < 0) ? -one : one; FLUSH_BITS(1)}
         RELOAD_SCALEFACTOR;
         DEQ_COUNT1(0);
         DEQ_COUNT1(1);
