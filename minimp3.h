@@ -79,8 +79,8 @@ int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, 
 #define MAX_SCF                     (255 + BITS_DEQUANTIZER_OUT * 4 - 210)
 #define MAX_SCFI                    ((MAX_SCF + 3) & ~3)
 
-#define MIN(a,b)                    ((a) > (b) ? (b) : (a))
-#define MAX(a,b)                    ((a) < (b) ? (b) : (a))
+#define MINIMP3_MIN(a, b)           ((a) > (b) ? (b) : (a))
+#define MINIMP3_MAX(a, b)           ((a) < (b) ? (b) : (a))
 
 #if defined(_MSC_VER) || defined(__i386__) || defined(__x86_64__)
 #   include <immintrin.h>
@@ -133,7 +133,7 @@ static int have_simd()
     }
     return 0;
 }
-#elif defined    __arm
+#elif defined(__arm)
 #   include <arm_neon.h>
 #   define HAVE_NEON 1
 #   define HAVE_SIMD 1
@@ -323,7 +323,7 @@ static const L12_subband_alloc_t * L12_subband_alloc_table(const uint8_t *hdr, L
     }
 
     sci->total_bands = (uint8_t)nbands;
-    sci->stereo_bands = (uint8_t)MIN(stereo_bands, nbands);
+    sci->stereo_bands = (uint8_t)MINIMP3_MIN(stereo_bands, nbands);
 
     return alloc;
 }
@@ -676,7 +676,7 @@ static void L3_decode_scalefactors(const uint8_t *hdr, uint8_t *ist_pos, bs_t *b
 
     while (gain_exp < MAX_SCFI)
     {
-        int dexp = MIN(30*4, MAX_SCFI - gain_exp);
+        int dexp = MINIMP3_MIN(30*4, MAX_SCFI - gain_exp);
         gain *= L3_ldexp_q2(dexp);
         gain_exp += dexp;
     }
@@ -758,7 +758,7 @@ static void L3_huffman(float *dst, bs_t *bs, const L3_gr_info_t *gr_info, const 
         do
         {
             np = *sfb++ / 2;
-            pairs_to_decode = MIN(big_val_cnt, np);
+            pairs_to_decode = MINIMP3_MIN(big_val_cnt, np);
             one = *scf++;
             do
             {
@@ -916,7 +916,7 @@ static void L3_intensity_stereo(float *left, uint8_t *ist_pos, const L3_gr_info_
     L3_stereo_top_band(left + 576, gr->sfbtab, n_sfb, max_band);
     if (gr->n_long_sfb)
     {
-        max_band[0] = max_band[1] = max_band[2] = MAX(MAX(max_band[0], max_band[1]), max_band[2]);
+        max_band[0] = max_band[1] = max_band[2] = MINIMP3_MAX(MINIMP3_MAX(max_band[0], max_band[1]), max_band[2]);
     }
     for (i = 0; i < max_blocks; i++)
     {
@@ -1162,8 +1162,8 @@ static void L3_save_reservoir(mp3dec_t *h, mp3dec_scratch_t *s)
 static int L3_restore_reservoir(mp3dec_t *h, bs_t *bs, mp3dec_scratch_t *s, int main_data_begin)
 {
     int frame_bytes = (bs->limit - bs->pos)/8;
-    int bytes_have = MIN(h->reserv, main_data_begin);
-    memcpy(s->maindata, h->reserv_buf + MAX(0, h->reserv - main_data_begin), MIN(h->reserv, main_data_begin));
+    int bytes_have = MINIMP3_MIN(h->reserv, main_data_begin);
+    memcpy(s->maindata, h->reserv_buf + MINIMP3_MAX(0, h->reserv - main_data_begin), MINIMP3_MIN(h->reserv, main_data_begin));
     memcpy(s->maindata + bytes_have, bs->buf + bs->pos/8, frame_bytes);
     bs_init(&s->bs, s->maindata, bytes_have + frame_bytes);
     return h->reserv >= main_data_begin;
@@ -1575,7 +1575,7 @@ static int mp3d_find_frame(const uint8_t *mp3, int mp3_bytes, int *free_format_b
             }
 
             if (frame_bytes && i + frame_and_padding <= mp3_bytes &&
-                mp3d_match_frame(mp3, MIN((frame_bytes + 1)*4, mp3_bytes - i), frame_bytes))
+                mp3d_match_frame(mp3, MINIMP3_MIN((frame_bytes + 1)*4, mp3_bytes - i), frame_bytes))
             {
                 *ptr_frame_bytes = frame_and_padding;
                 return i;
