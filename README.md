@@ -3,7 +3,7 @@ minimp3
 
 [![Build Status](https://travis-ci.org/lieff/minimp3.svg)](https://travis-ci.org/lieff/minimp3)
 
-Minimalistic MP3 decoder. It's designed to be small, fast (with sse/neon support) and accurate (ISO conformant).
+Minimalistic MP3 decoder single header library. It's designed to be small, fast (with sse/neon support) and accurate (ISO conformant).
 Here is rough benchmark measured with perf (i7-6700K, IO included, no CPU heat to address speedstep):
 
 
@@ -29,7 +29,7 @@ Feature compare:
 | Keyj minimp3 | Current |
 | ------------ | ------- |
 | Fixed point  | Float point |
-| source: 84kb | 70kb |
+| source: 84kb | 68kb |
 | no vector opts | sse/neon intrinsics |
 
 

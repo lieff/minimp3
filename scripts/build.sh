@@ -11,7 +11,7 @@ if [ ! -d "fate-suite.ffmpeg.org" ]; then
   cp vectors/l3-he_mode16.pcm fate-suite.ffmpeg.org/mp3-conformance/he_mode.pcm
 fi
 
-gcc -Dminimp3_test -O2 -g -o minimp3 minimp3.c -lm
+gcc -O2 -g -o minimp3 minimp3_test.c -lm
 
 APP=./minimp3
 
