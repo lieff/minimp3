@@ -50,3 +50,4 @@ Keyj minimp3 benchmark/conformance test:
 |si_huff.bit  | 44100 | 86400  | 1.959  | 21121376  | 10.780M | 27.80 | 65535 |
 |sin1k0db.bit | 44100 | 730368 | 16.561 | 55569636  | 3.355M  | 0.15  | 58814 |
 
+Conformance test fails on all vectors (PSNR < 96db), free format is not supported.
