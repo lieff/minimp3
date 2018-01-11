@@ -11,7 +11,7 @@ APP=./minimp3
 
 set +e
 for i in fate-suite.ffmpeg.org/mp3-conformance/*.bit; do
-$APP $i $i.out ${i%.*}.pcm
+$APP $i ${i%.*}.pcm
 retval=$?
 echo $i exited with code=$retval
 if [ ! $retval -eq 0 ]; then

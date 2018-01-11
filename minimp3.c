@@ -1656,7 +1656,7 @@ static char *wav_header(int hz, int ch, int bips, int data_bytes)
     return hdr;
 }
 
-static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
+static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
 {
     static mp3dec_t mp3d = { 0, };
     mp3dec_frame_info_t info;
@@ -1684,7 +1684,8 @@ static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
                     maxdiff = MSEtemp;
                 MSE += MSEtemp*MSEtemp;
             }
-            fwrite(pcm, samples, 2*info.channels, file_wav);
+            if (file_out)
+                fwrite(pcm, samples, 2*info.channels, file_out);
         }
         memmove(buf, buf + info.frame_bytes, nbuf -= info.frame_bytes);
     } while (info.frame_bytes);
@@ -1704,21 +1705,23 @@ static void decode_file(FILE *file_mp3, FILE *file_wav, FILE *file_ref)
     //data_bytes = ftell(file_wav) - 44;
     //rewind(file_wav);
     //fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_wav);
-    fclose(file_wav);
     fclose(file_mp3);
+    fclose(file_ref);
+    if (file_out)
+        fclose(file_out);
 }
 
 int main(int argc, char *argv[])
 {
     char *input_file_name  = (argc > 1) ? argv[1] : NULL;
-    char *output_file_name = (argc > 2) ? argv[2] : NULL;
-    char *ref_file_name    = (argc > 3) ? argv[3] : NULL;
-    if (!input_file_name || !output_file_name || !ref_file_name)
+    char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
+    char *output_file_name = (argc > 3) ? argv[3] : NULL;
+    if (!input_file_name || !ref_file_name)
     {
         printf("error: no file names given\n");
         return 1;
     }
-    decode_file(fopen(input_file_name, "rb"), fopen(output_file_name, "wb"), fopen(ref_file_name, "rb"));
+    decode_file(fopen(input_file_name, "rb"), fopen(ref_file_name, "rb"), output_file_name ? fopen(output_file_name, "wb") : NULL);
     return 0;
 }
 #endif
