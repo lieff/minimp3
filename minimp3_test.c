@@ -34,7 +34,7 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
 
     do
     {
-        short pcm[2*1152], pcm2[2*1152];
+        short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME], pcm2[MINIMP3_MAX_SAMPLES_PER_FRAME];
         nbuf += fread(buf + nbuf, 1, sizeof(buf) - nbuf, file_mp3);
         samples = mp3dec_decode_frame(&mp3d, buf, nbuf, pcm, &info);
         if (samples)

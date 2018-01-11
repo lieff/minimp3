@@ -5,6 +5,9 @@
     This software is distributed without any warranty.
     See <http://creativecommons.org/publicdomain/zero/1.0/>.
 */
+
+#define MINIMP3_MAX_SAMPLES_PER_FRAME (1152*2)
+
 typedef struct
 {
     int frame_bytes;
