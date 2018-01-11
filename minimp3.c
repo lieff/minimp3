@@ -787,10 +787,10 @@ static void L3_midside_stereo(float *left, int n)
 #if HAVE_SIMD
     if (have_simd()) for (; i < n - 3; i += 4)
     {
-        f4 vl = VLD(left+i);
-        f4 vr = VLD(right+i);
-        VSTORE(left+i, VADD(vl, vr));
-        VSTORE(right+i, VSUB(vl, vr));
+        f4 vl = VLD(left + i);
+        f4 vr = VLD(right + i);
+        VSTORE(left + i, VADD(vl, vr));
+        VSTORE(right + i, VSUB(vl, vr));
     }
 #endif
     for (; i < n; i++)
@@ -990,10 +990,10 @@ static void L3_imdct36(float *grbuf, float *overlap, const float *window, int nb
         si[0] = grbuf[17];
         for (i = 0; i < 4; i++)
         {
-            si[8-2*i] = grbuf[4*i+1] - grbuf[4*i+2];
-            co[1+2*i] = grbuf[4*i+1] + grbuf[4*i+2];
-            si[7-2*i] = grbuf[4*i+4] - grbuf[4*i+3];
-            co[2+2*i] = -(grbuf[4*i+3] + grbuf[4*i+4]);
+            si[8 - 2*i] =   grbuf[4*i + 1] - grbuf[4*i + 2];
+            co[1 + 2*i] =   grbuf[4*i + 1] + grbuf[4*i + 2];
+            si[7 - 2*i] =   grbuf[4*i + 4] - grbuf[4*i + 3];
+            co[2 + 2*i] = -(grbuf[4*i + 3] + grbuf[4*i + 4]);
         }
         L3_dct3_9(co);
         L3_dct3_9(si);
@@ -1024,11 +1024,11 @@ static void L3_imdct36(float *grbuf, float *overlap, const float *window, int nb
 #endif
         for (; i < 9; i++)
         {
-            float ovl = overlap[i];
+            float ovl  = overlap[i];
             float sum  = co[i]*g_twid9[9 + i] + si[i]*g_twid9[0 + i];
             overlap[i] = co[i]*g_twid9[0 + i] - si[i]*g_twid9[9 + i];
-            grbuf[i]    = ovl*window[0 + i] - sum*window[9 + i];
-            grbuf[17-i] = ovl*window[9 + i] + sum*window[0 + i];
+            grbuf[i]      = ovl*window[0 + i] - sum*window[9 + i];
+            grbuf[17 - i] = ovl*window[9 + i] + sum*window[0 + i];
         }
     }
 }
@@ -1178,17 +1178,17 @@ static void mp3d_DCT_II(float *grbuf, int n)
         for (x = t[0], i = 0; i < 8; i++, x++)
         {
             f4 x0 = VLD(&y[i*18]);
-            f4 x1 = VLD(&y[(15-i)*18]);
-            f4 x2 = VLD(&y[(16+i)*18]);
-            f4 x3 = VLD(&y[(31-i)*18]);
+            f4 x1 = VLD(&y[(15 - i)*18]);
+            f4 x2 = VLD(&y[(16 + i)*18]);
+            f4 x3 = VLD(&y[(31 - i)*18]);
             f4 t0 = VADD(x0, x3);
             f4 t1 = VADD(x1, x2);
-            f4 t2 = VMUL_S(VSUB(x1, x2), g_sec[3*i+0]);
-            f4 t3 = VMUL_S(VSUB(x0, x3), g_sec[3*i+1]);
+            f4 t2 = VMUL_S(VSUB(x1, x2), g_sec[3*i + 0]);
+            f4 t3 = VMUL_S(VSUB(x0, x3), g_sec[3*i + 1]);
             x[0] = VADD(t0, t1);
-            x[8] = VMUL_S(VSUB(t0, t1), g_sec[3*i+2]);
+            x[8] = VMUL_S(VSUB(t0, t1), g_sec[3*i + 2]);
             x[16] = VADD(t3, t2);
-            x[24] = VMUL_S(VSUB(t3, t2), g_sec[3*i+2]);
+            x[24] = VMUL_S(VSUB(t3, t2), g_sec[3*i + 2]);
         }
         for (x = t[0], i = 0; i < 4; i++, x += 8)
         {
@@ -1217,7 +1217,7 @@ static void mp3d_DCT_II(float *grbuf, int n)
             x[7] = VMUL_S(VSUB(xt, x7), 2.56291556f);
         }
 
-        if (k > n-3)
+        if (k > n - 3)
         {
 #if HAVE_SSE
 #define VSAVE2(i, v) _mm_storel_pi((__m64 *)&y[i*18], v)
@@ -1695,7 +1695,7 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
         psnr = 99.0;
     else
         psnr = 10.0*log10(((double)0x7fff*0x7fff)/MSE);
-    printf("samples=%d max_diff=%d PSNR=%f\n", total_samples, maxdiff, psnr);
+    printf("rate=%d samples=%d max_diff=%d PSNR=%f\n", info.hz, total_samples, maxdiff, psnr);
     if (psnr < 96)
     {
         printf("PSNR compliance failed\n");
