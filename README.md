@@ -3,7 +3,7 @@ minimp3
 
 [![Build Status](https://travis-ci.org/lieff/minimp3.svg)](https://travis-ci.org/lieff/minimp3)
 
-Minimalistic MP3 decoder. It's designed to be small, fast and accurate (ISO conformant).
+Minimalistic MP3 decoder. It's designed to be small, fast (with sse/neon suport) and accurate (ISO conformant).
 Here is rough benchmark measured with perf (i7-6700K, IO included, no CPU heat to address speedstep):
 
 
