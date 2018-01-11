@@ -384,7 +384,7 @@ static void L12_read_scale_info(const uint8_t *hdr, bs_t *bs, L12_scale_info *sc
         {
             ba = ba_code_tab[get_bits(bs, ba_bits)];
         }
-        sci->bitalloc[2*i+1] = sci->stereo_bands ? ba : 0;
+        sci->bitalloc[2*i + 1] = sci->stereo_bands ? ba : 0;
     }
 
     for (i = 0; i < 2 * sci->total_bands; i++)
@@ -1215,7 +1215,7 @@ static void mp3d_DCT_II(float *grbuf, int n)
     if (have_simd()) for (; k < n; k += 4)
     {
         f4 t[4][8], *x;
-        float * y = grbuf + k;
+        float *y = grbuf + k;
 
         for (x = t[0], i = 0; i < 8; i++, x++)
         {
@@ -1481,7 +1481,7 @@ static void mp3d_synth(float *xl, short *dstl, int nch, float *lins)
 #endif
     for (i = 14; i >= 0; i--)
     {
-#define LOAD(k) float w0 = *w++; float w1 = *w++; float * vz = &zlin[4*i-k*64]; float * vy = &zlin[4*i-(15-k)*64];
+#define LOAD(k) float w0 = *w++; float w1 = *w++; float * vz = &zlin[4*i - k*64]; float * vy = &zlin[4*i - (15 - k)*64];
 #define S0(k) {int j; LOAD(k); for (j = 0; j < 4; j++) b[j]  = vz[j] * w1 + vy[j] * w0, a[j]  = vz[j] * w0 - vy[j] * w1;}
 #define S1(k) {int j; LOAD(k); for (j = 0; j < 4; j++) b[j] += vz[j] * w1 + vy[j] * w0, a[j] += vz[j] * w0 - vy[j] * w1;}
 #define S2(k) {int j; LOAD(k); for (j = 0; j < 4; j++) b[j] += vz[j] * w1 + vy[j] * w0, a[j] += vy[j] * w1 - vz[j] * w0;}

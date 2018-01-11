@@ -7,7 +7,7 @@ Minimalistic MP3 decoder single header library. It's designed to be small, fast 
 Here is rough benchmark measured with perf (i7-6700K, IO included, no CPU heat to address speedstep):
 
 
-| Vector      | Hz    | Samples| Sec    | Clocktics | Clocktics per second | PSNR | Max diff |
+| Vector      | Hz    | Samples| Sec    | Clockticks | Clockticks per second | PSNR | Max diff |
 | ----------- | ----- | ------ | ------ | --------- | ------ | ------ | - |
 |compl.bit    | 48000 | 248832 | 5.184  | 25242198  | 4.869M | 124.22 | 1 |
 |he_32khz.bit | 32000 | 172800 | 5.4    | 16148873  | 2.990M | 139.67 | 1 |
@@ -36,7 +36,7 @@ Feature compare:
 Keyj minimp3 benchmark/conformance test:
 
 
-| Vector      | Hz    | Samples| Sec    | Clocktics | Clocktics per second | PSNR | Max diff |
+| Vector      | Hz    | Samples| Sec    | Clockticks | Clockticks per second | PSNR | Max diff |
 | ----------- | ----- | ------ | ------ | --------- | ------  | ----- | - |
 |compl.bit    | 48000 | 248832 | 5.184  | 31849373  | 6.143M  | 71.50 | 41 |
 |he_32khz.bit | 32000 | 172800 | 5.4    | 26302319  | 4.870M  | 71.63 | 24 |
