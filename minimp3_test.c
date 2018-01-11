@@ -3,7 +3,7 @@
 #include <stdio.h>
 #include <math.h>
 
-static char *wav_header(int hz, int ch, int bips, int data_bytes)
+/*static char *wav_header(int hz, int ch, int bips, int data_bytes)
 {
     static char hdr[44] = "RIFFsizeWAVEfmt \x10\0\0\0\1\0ch_hz_abpsbabsdatasize";
     unsigned long nAvgBytesPerSec = bips*ch*hz >> 3;
@@ -18,13 +18,13 @@ static char *wav_header(int hz, int ch, int bips, int data_bytes)
     *(short *)(hdr + 0x22) = bips;
     *(int *  )(hdr + 0x28) = data_bytes;
     return hdr;
-}
+}*/
 
 static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
 {
     static mp3dec_t mp3d = { 0, };
     mp3dec_frame_info_t info;
-    int i, data_bytes, samples, total_samples = 0, nbuf = 0, maxdiff = 0;
+    int i, /*data_bytes, */samples, total_samples = 0, nbuf = 0, maxdiff = 0;
     double MSE = 0.0, psnr;
     unsigned char buf[4096];
 
@@ -39,7 +39,9 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
         samples = mp3dec_decode_frame(&mp3d, buf, nbuf, pcm, &info);
         if (samples)
         {
-            fread(pcm2, 1, 2*info.channels*samples, file_ref);
+            int readed = fread(pcm2, 1, 2*info.channels*samples, file_ref);
+            if (readed < 0)
+                exit(1);
             total_samples += samples*info.channels;
             for (i = 0; i < samples*info.channels; i++)
             {
