@@ -1579,6 +1579,11 @@ static int mp3d_find_frame(const uint8_t *mp3, int mp3_bytes, int *free_format_b
     return i;
 }
 
+void mp3dec_init(mp3dec_t *dec)
+{
+    dec->header[0] = 0;
+}
+
 int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, short *pcm, mp3dec_frame_info_t *info)
 {
     int i = 0, igr, frame_size = 0, success = 1;
@@ -1662,10 +1667,5 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, short 
         }
     }
     return success*hdr_frame_samples(dec->header);
-}
-
-void mp3dec_init(mp3dec_t *dec)
-{
-    dec->header[0] = 0;
 }
 #endif //MINIMP3_IMPLEMENTATION
