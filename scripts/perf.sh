@@ -6,7 +6,7 @@ pushd $CUR_DIR/..
 
 APP=./minimp3
 
-for i in fate-suite.ffmpeg.org/mp3-conformance/*.bit; do
+for i in vectors/*.bit; do
 perf stat -e cycles $APP $i ${i%.*}.pcm
 done
 
