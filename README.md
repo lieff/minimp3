@@ -54,11 +54,15 @@ Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), free format is
 
 ## Usage
 
-Firstly we need initialize decoder structure:
+Firstly we need to initialize decoder structure:
 ```
+#define MINIMP3_IMPLEMENTATION
+#include "minimp3.h"
+...
     static mp3dec_t mp3d;
     mp3dec_init(&mp3d);
 ```
+Note that MINIMP3_IMPLEMENTATION define must be present in one c/cpp file, while minimp3.h can be included in multiple files.  
 Then we decode input stream frame-by-frame:
 ```
     /*typedef struct
