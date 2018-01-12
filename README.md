@@ -75,6 +75,11 @@ Then we deode input stream frame-by-frame:
     samples = mp3dec_decode_frame(&mp3d, input_buf, buf_size, pcm, &info);
 ```
 This returns number of samples decoded and fills info structure.
-Firstly we must check info.frame_bytes, zero indicates eof, if it's nonzero, than it indicates how much input data consumed, input_buf must be advanced by this value for next mp3dec_decode_frame invocation.
+Firstly we must check info.frame_bytes, zero indicates eof and other info fields can be uninitialized/not updated, if it's nonzero, than it indicates how much input data consumed, input_buf must be advanced by this value for next mp3dec_decode_frame invocation.
 Number of samples can differ between mp3dec_decode_frame invocations and can be zero.
 Also info.frame_bytes != 0 means frame decoded and all info fields available such as info.hz = sample rate, info.channels = mono(1)/stereo(2), info.bitrate_kbps = bitrate in kbits.
+
+## Seeking
+
+You can just seek to any byte in the middle of stream and call mp3dec_decode_frame, it works almost always, but not 100% guaranteed. If granule data accidentally detected as valid mp3 header, short audio artifacts is possible.
+Howewer, if file known to be cbr, frames have equal size and do not have id3 tags we can decode first frame and calculate all frame positions: info.frame_bytes*N.
