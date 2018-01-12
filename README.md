@@ -2,6 +2,10 @@ minimp3
 ==========
 
 [![Build Status](https://travis-ci.org/lieff/minimp3.svg)](https://travis-ci.org/lieff/minimp3)
+<a href="https://scan.coverity.com/projects/lieff-minimp3">
+  <img alt="Coverity Scan Build Status"
+       src="https://scan.coverity.com/projects/14844/badge.svg"/>
+</a>
 
 Minimalistic MP3 decoder single header library. It's designed to be small, fast (with sse/neon support) and accurate (ISO conformant).
 Here is rough benchmark measured with perf (i7-6700K, IO included, no CPU heat to address speedstep):
