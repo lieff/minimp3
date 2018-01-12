@@ -59,7 +59,7 @@ Firstly we need initialize decoder structure:
     static mp3dec_t mp3d;
     mp3dec_init(&mp3d);
 ```
-Then we deode input stream frame-by-frame:
+Then we decode input stream frame-by-frame:
 ```
     /*typedef struct
     {
@@ -74,8 +74,6 @@ Then we deode input stream frame-by-frame:
     /*unsigned char *input_buf; - input byte stream*/
     samples = mp3dec_decode_frame(&mp3d, input_buf, buf_size, pcm, &info);
 ```
-This returns number of samples decoded and fills info structure.
-
 The mp3dec_decode_frame() decode 1 full MP3 frame from input buffer.  
 
 The input buffer must be sufficient to hold 1 MP3 frame.  
@@ -111,4 +109,5 @@ As a special case, decoder support already splitted MP3 streams (for ex, after M
 ## Seeking
 
 You can just seek to any byte in the middle of stream and call mp3dec_decode_frame, it works almost always, but not 100% guaranteed. If granule data accidentally detected as valid mp3 header, short audio artifacts is possible.
-Howewer, if file known to be cbr, frames have equal size and do not have id3 tags we can decode first frame and calculate all frame positions: info.frame_bytes*N.
+However, if file known to be cbr, frames have equal size and do not have id3 tags we can decode first frame and calculate all frame positions: info.frame_bytes*N.
+Note that because of padding, frames can differ in size even in cbr case.
