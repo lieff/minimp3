@@ -88,16 +88,20 @@ Size of consumed MP3 data returned in the mp3dec_frame_info_t::frame_bytes field
 Application must remove mp3dec_frame_info_t::frame_bytes bytes from input buffer before next decoder invocation.  
 
 Decode function returns # of decoded samples; following cases are possible:  
-  0    - No MP3 data was found in the input buffer  
+
+- 0    - No MP3 data was found in the input buffer  
   384  - Layer 1  
   576  - MPEG 2 Layer 3  
   1152 - otherwise  
 
 Description of returned #samples and mp3dec_frame_info_t::frame_bytes combination:  
+
+-  
   #samples >  0 && frame_bytes >  0  -  succesful decode  
   #samples == 0 && frame_bytes >  0  -  decoder skip ID3 or invalid data  
   #samples == 0 && frame_bytes == 0  -  insufficied data, application must supply more data  
   #samples >  0 && frame_bytes == 0  -  impossible combination  
+
 Also if frame_bytes == 0 other info fields can be uninitialized/not updated, if info.frame_bytes != 0 all info fields available such as info.hz = sample rate, info.channels = mono(1)/stereo(2), info.bitrate_kbps = bitrate in kbits.  
 
 Application may call mp3dec_init() when changing decode position, however, it is not necessary.  
