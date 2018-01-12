@@ -50,4 +50,31 @@ Keyj minimp3 benchmark/conformance test:
 |si_huff.bit  | 44100 | 86400  | 1.959  | 21121376  | 10.780M | 27.80 | 65535 |
 |sin1k0db.bit | 44100 | 730368 | 16.561 | 55569636  | 3.355M  | 0.15  | 58814 |
 
-Conformance test fails on all vectors (PSNR < 96db), free format is not supported.
+Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), free format is not supported.
+
+## Usage
+
+Firstly we need initialize decoder structure:
+```
+    static mp3dec_t mp3d;
+    mp3dec_init(&mp3d);
+```
+Then we deode input stream frame-by-frame:
+```
+    /*typedef struct
+    {
+        int frame_bytes;
+        int channels;
+        int hz;
+        int layer;
+        int bitrate_kbps;
+    } mp3dec_frame_info_t;*/
+    mp3dec_frame_info_t info;
+    short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    /*unsigned char *input_buf; - input byte stream*/
+    samples = mp3dec_decode_frame(&mp3d, input_buf, buf_size, pcm, &info);
+```
+This returns number of samples decoded and fills info structure.
+Firstly we must check info.frame_bytes, zero indicates eof, if it's nonzero, than it indicates how much input data consumed, input_buf must be advanced by this value for next mp3dec_decode_frame invocation.
+Number of samples can differ between mp3dec_decode_frame invocations and can be zero.
+Also info.frame_bytes != 0 means frame decoded and all info fields available such as info.hz = sample rate, info.channels = mono(1)/stereo(2), info.bitrate_kbps = bitrate in kbits.
