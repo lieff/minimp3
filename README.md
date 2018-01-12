@@ -75,9 +75,34 @@ Then we deode input stream frame-by-frame:
     samples = mp3dec_decode_frame(&mp3d, input_buf, buf_size, pcm, &info);
 ```
 This returns number of samples decoded and fills info structure.
-Firstly we must check info.frame_bytes, zero indicates eof and other info fields can be uninitialized/not updated, if it's nonzero, than it indicates how much input data consumed, input_buf must be advanced by this value for next mp3dec_decode_frame invocation.
-Number of samples can differ between mp3dec_decode_frame invocations and can be zero.
-Also info.frame_bytes != 0 means frame decoded and all info fields available such as info.hz = sample rate, info.channels = mono(1)/stereo(2), info.bitrate_kbps = bitrate in kbits.
+
+The mp3dec_decode_frame() decode 1 full MP3 frame from input buffer.  
+
+The input buffer must be sufficient to hold 1 MP3 frame.  
+
+Decoder analyse input buffer to properly sync with the MP3 stream, and skip ID3 and invalid data.  
+Short buffer may cause false sync and produce squealing artefacts. The more input data size, the more reliable sync procedure.  
+It is recommended to have up to 10 consecutive MP3 frames (~ 16 KB) in the input buffer.  
+
+Size of consumed MP3 data returned in the mp3dec_frame_info_t::frame_bytes field.  
+Application must remove mp3dec_frame_info_t::frame_bytes bytes from input buffer before next decoder invocation.  
+
+Decode function returns # of decoded samples; following cases are possible:  
+  0    - No MP3 data was found in the input buffer  
+  384  - Layer 1  
+  576  - MPEG 2 Layer 3  
+  1152 - otherwise  
+
+Description of returned #samples and mp3dec_frame_info_t::frame_bytes combination:  
+  #samples >  0 && frame_bytes >  0  -  succesful decode  
+  #samples == 0 && frame_bytes >  0  -  decoder skip ID3 or invalid data  
+  #samples == 0 && frame_bytes == 0  -  insufficied data, application must supply more data  
+  #samples >  0 && frame_bytes == 0  -  impossible combination  
+Also if frame_bytes == 0 other info fields can be uninitialized/not updated, if info.frame_bytes != 0 all info fields available such as info.hz = sample rate, info.channels = mono(1)/stereo(2), info.bitrate_kbps = bitrate in kbits.  
+
+Application may call mp3dec_init() when changing decode position, however, it is not necessary.  
+
+As a special case, decoder support already splitted MP3 streams (for ex, after MP4 demux). In this case input buffer must contains exactly 1 non-free-format frame.  
 
 ## Seeking
 
