@@ -82,7 +82,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, 
 #define MINIMP3_MIN(a, b)           ((a) > (b) ? (b) : (a))
 #define MINIMP3_MAX(a, b)           ((a) < (b) ? (b) : (a))
 
-#if defined(_MSC_VER) || defined(__i386__) || defined(__x86_64__)
+#if defined(_MSC_VER) || ((defined(__i386__) || defined(__x86_64__)) && defined(__SSE2__))
 #   include <immintrin.h>
 #   define HAVE_SSE 1
 #   define HAVE_SIMD 1
