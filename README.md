@@ -55,7 +55,7 @@ Below, you can find the benchmark and conformance test for keyj's minimp3:
 |si_huff.bit  | 44100 | 86400  | 1.959  | 21121376  | 10.780M | 27.80 | 65535 |
 |sin1k0db.bit | 44100 | 730368 | 16.561 | 55569636  | 3.355M  | 0.15  | 58814 |
 
-Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), as free 
+Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), and free 
 format is unsupported. This caused some problems when it was used 
 [here](https://github.com/lieff/lvg), and was the main motivation for this fork.
 
@@ -71,7 +71,7 @@ First, we need to initialize the decoder structure:
     mp3dec_init(&mp3d);
 ```
 
-Note that you must define ``MINIMP3_IMPLEMENTATION`` in exactly one source file. i
+Note that you must define ``MINIMP3_IMPLEMENTATION`` in exactly one source file.
 You can ``#include`` ``minimp3.h`` in as many files as you like.
 
 Then. we decode the input stream frame-by-frame:
