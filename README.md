@@ -13,18 +13,19 @@ Here is rough benchmark measured with perf (i7-6700K, IO included, no CPU heat t
 
 | Vector      | Hz    | Samples| Sec    | Clockticks | Clockticks per second | PSNR | Max diff |
 | ----------- | ----- | ------ | ------ | --------- | ------ | ------ | - |
-|compl.bit    | 48000 | 248832 | 5.184  | 25242198  | 4.869M | 124.22 | 1 |
-|he_32khz.bit | 32000 | 172800 | 5.4    | 16148873  | 2.990M | 139.67 | 1 |
-|he_44khz.bit | 44100 | 472320 | 10.710 | 41977782  | 3.919M | 144.04 | 1 |
-|he_48khz.bit | 48000 | 172800 | 3.6    | 16127644  | 4.479M | 139.67 | 1 |
-|hecommon.bit | 44100 | 69120  | 1.567  | 6133060   | 3.913M | 133.93 | 1 |
-|he_free.bit  | 44100 | 156672 | 3.552  | 12423560  | 3.496M | 137.48 | 1 |
-|he_mode.bit  | 44100 | 262656 | 5.955  | 18489271  | 3.104M | 118.00 | 1 |
-|si.bit       | 44100 | 135936 | 3.082  | 13070375  | 4.240M | 120.30 | 1 |
-|si_block.bit | 44100 | 73728  | 1.671  | 7148739   | 4.275M | 125.18 | 1 |
-|si_huff.bit  | 44100 | 86400  | 1.959  | 8595200   | 4.387M | 107.98 | 1 |
-|sin1k0db.bit | 44100 | 725760 | 16.457 | 55247025  | 3.357M | 111.03 | 1 |
+|compl.bit    | 48000 | 248832 | 5.184  | 14306684  | 2.759M | 124.22 | 1 |
+|he_32khz.bit | 32000 | 172800 | 5.4    | 8426158   | 1.560M | 139.67 | 1 |
+|he_44khz.bit | 44100 | 472320 | 10.710 | 21296300  | 1.988M | 144.04 | 1 |
+|he_48khz.bit | 48000 | 172800 | 3.6    | 8453846   | 2.348M | 139.67 | 1 |
+|hecommon.bit | 44100 | 69120  | 1.567  | 3169715   | 2.022M | 133.93 | 1 |
+|he_free.bit  | 44100 | 156672 | 3.552  | 5798418   | 1.632M | 137.48 | 1 |
+|he_mode.bit  | 44100 | 262656 | 5.955  | 9882314   | 1.659M | 118.00 | 1 |
+|si.bit       | 44100 | 135936 | 3.082  | 7170520   | 2.326M | 120.30 | 1 |
+|si_block.bit | 44100 | 73728  | 1.671  | 4233136   | 2.533M | 125.18 | 1 |
+|si_huff.bit  | 44100 | 86400  | 1.959  | 4785322   | 2.442M | 107.98 | 1 |
+|sin1k0db.bit | 44100 | 725760 | 16.457 | 24842977  | 1.509M | 111.03 | 1 |
 
+Conformance test passed on all vectors (PSNR > 96db).
 
 ## Compare with keyj's [minimp3](http://keyj.emphy.de/minimp3/)
 
@@ -54,7 +55,8 @@ Keyj minimp3 benchmark/conformance test:
 |si_huff.bit  | 44100 | 86400  | 1.959  | 21121376  | 10.780M | 27.80 | 65535 |
 |sin1k0db.bit | 44100 | 730368 | 16.561 | 55569636  | 3.355M  | 0.15  | 58814 |
 
-Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), free format is not supported.
+Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), free format is not supported.  
+This cause some problems when it used here https://github.com/lieff/lvg and main reason of creating this new one.
 
 ## Usage
 
