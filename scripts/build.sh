@@ -6,7 +6,8 @@ pushd $CUR_DIR/..
 
 set -e
 
-gcc -O2 -g -Wall -Wextra -o minimp3 minimp3_test.c -lm
+gcc -O2 -g -Wall -Wextra -fno-asynchronous-unwind-tables -fno-stack-protector -ffunction-sections \
+-fdata-sections -Wl,--gc-sections -o minimp3 minimp3_test.c -lm
 
 APP=./minimp3
 

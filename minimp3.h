@@ -126,13 +126,18 @@ static __inline__ __attribute__((always_inline)) void minimp3_cpuid(int CPUInfo[
 #endif
 static int have_simd()
 {
+    static int g_have_simd;
     int CPUInfo[4];
+    if (g_have_simd)
+        return g_have_simd - 1;
     minimp3_cpuid(CPUInfo, 0);
     if (CPUInfo[0] > 0)
     {
         minimp3_cpuid(CPUInfo, 1);
-        return (CPUInfo[3] & (1 << 26)); // SSE2
+        g_have_simd = (CPUInfo[3] & (1 << 26)) + 1; // SSE2
+        return g_have_simd - 1;
     }
+    g_have_simd = 1;
     return 0;
 }
 #elif defined(__arm)
