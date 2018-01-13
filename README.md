@@ -7,9 +7,10 @@ minimp3
        src="https://scan.coverity.com/projects/14844/badge.svg"/>
 </a>
 
-Minimalistic MP3 decoder single header library. It's designed to be small, fast (with sse/neon support) and accurate (ISO conformant).
-Here is rough benchmark measured with perf (i7-6700K, IO included, no CPU heat to address speedstep):
-
+Minimalistic, single-header library for decoding MP3. minimp3 is designed to be
+small, fast (with SSE and NEON support), and accurate (ISO conformant). You can
+find a rough benchmark below, measured using ``perf`` on an i7-6700K, IO
+included, no CPU heat to address speedstep:
 
 | Vector      | Hz    | Samples| Sec    | Clockticks | Clockticks per second | PSNR | Max diff |
 | ----------- | ----- | ------ | ------ | --------- | ------ | ------ | - |
@@ -27,18 +28,17 @@ Here is rough benchmark measured with perf (i7-6700K, IO included, no CPU heat t
 
 Conformance test passed on all vectors (PSNR > 96db).
 
-## Compare with keyj's [minimp3](http://keyj.emphy.de/minimp3/)
+## Comparison with keyj's [minimp3](http://keyj.emphy.de/minimp3/)
 
-Feature compare:
+Comparison by features:
 
 | Keyj minimp3 | Current |
 | ------------ | ------- |
-| Fixed point  | Float point |
+| Fixed point  | Floating point |
 | source: 84kb | 68kb |
-| no vector opts | sse/neon intrinsics |
+| no vector opts | SSE/NEON intrinsics |
 
-
-Keyj minimp3 benchmark/conformance test:
+Below, you can find the benchmark and conformance test for keyj's minimp3: 
 
 
 | Vector      | Hz    | Samples| Sec    | Clockticks | Clockticks per second | PSNR | Max diff |
@@ -55,12 +55,14 @@ Keyj minimp3 benchmark/conformance test:
 |si_huff.bit  | 44100 | 86400  | 1.959  | 21121376  | 10.780M | 27.80 | 65535 |
 |sin1k0db.bit | 44100 | 730368 | 16.561 | 55569636  | 3.355M  | 0.15  | 58814 |
 
-Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), free format is not supported.  
-This cause some problems when it used here https://github.com/lieff/lvg and main reason of creating this new one.
+Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), as free 
+format is unsupported. This caused some problems when it was used 
+[here](https://github.com/lieff/lvg), and was the main motivation for this fork.
 
 ## Usage
 
-Firstly we need to initialize decoder structure:
+First, we need to initialize the decoder structure:
+
 ```
 #define MINIMP3_IMPLEMENTATION
 #include "minimp3.h"
@@ -68,8 +70,12 @@ Firstly we need to initialize decoder structure:
     static mp3dec_t mp3d;
     mp3dec_init(&mp3d);
 ```
-Note that MINIMP3_IMPLEMENTATION define must be present in one c/cpp file, while minimp3.h can be included in multiple files.  
-Then we decode input stream frame-by-frame:
+
+Note that you must define ``MINIMP3_IMPLEMENTATION`` in exactly one source file. i
+You can ``#include`` ``minimp3.h`` in as many files as you like.
+
+Then. we decode the input stream frame-by-frame:
+
 ```
     /*typedef struct
     {
@@ -84,40 +90,50 @@ Then we decode input stream frame-by-frame:
     /*unsigned char *input_buf; - input byte stream*/
     samples = mp3dec_decode_frame(&mp3d, input_buf, buf_size, pcm, &info);
 ```
-The mp3dec_decode_frame() decode 1 full MP3 frame from input buffer.  
 
-The input buffer must be sufficient to hold 1 MP3 frame.  
+The ``mp3dec_decode_frame()`` function decodes one full MP3 frame from the 
+input buffer, which must be large enough to hold one full frame. 
 
-Decoder analyse input buffer to properly sync with the MP3 stream, and skip ID3 and invalid data.  
-Short buffer may cause false sync and produce squealing artefacts. The more input data size, the more reliable sync procedure.  
-It is recommended to have up to 10 consecutive MP3 frames (~ 16 KB) in the input buffer.  
+The decoder will analyze the input buffer to properly sync with the MP3 stream,
+and will skip ID3 data, as well as any data which is not valid. Short buffers
+may cause false sync and can produce 'squealing' artefacts. The bigger the size
+of the input buffer, the more reliable the sync procedure. We recommend having
+as many as 10 consecutive MP3 frames (~16KB) in the input buffer at a time.
 
-Size of consumed MP3 data returned in the mp3dec_frame_info_t::frame_bytes field.  
-Application must remove mp3dec_frame_info_t::frame_bytes bytes from input buffer before next decoder invocation.  
+The size of the consumed MP3 data is returned in the ``mp3dec_frame_info_t`` 
+field of the ``frame_bytes`` struct; you must remove the data corresponding to 
+the ``frame_bytes`` field  from the input buffer before the next decoder 
+invocation.  
 
-Decode function returns # of decoded samples; following cases are possible:  
+The decoding function returns the number of decoded samples. The following cases
+are possible:
 
-- 0    - No MP3 data was found in the input buffer  
-  384  - Layer 1  
-  576  - MPEG 2 Layer 3  
-  1152 - otherwise  
+- **0:** No MP3 data was found in the input buffer  
+- **384:**  Layer 1  
+- **576:**  MPEG 2 Layer 3  
+- **1152:** Otherwise  
 
-Description of returned #samples and mp3dec_frame_info_t::frame_bytes combination:  
+The following is a description of the possible combinations of the number of
+samples and ``frame_bytes`` field values:
 
--  
-  #samples >  0 && frame_bytes >  0  -  succesful decode  
-  #samples == 0 && frame_bytes >  0  -  decoder skip ID3 or invalid data  
-  #samples == 0 && frame_bytes == 0  -  insufficied data, application must supply more data  
-  #samples >  0 && frame_bytes == 0  -  impossible combination  
+- More than 0 samples and ``frame_bytes > 0``:  Succesful decode  
+- 0 samples and ``frame_bytes >  0``: The decoder skipped ID3 or invalid data  
+- 0 samples and ``frame_bytes == 0``: Insufficient data
 
-Also if frame_bytes == 0 other info fields can be uninitialized/not updated, if info.frame_bytes != 0 all info fields available such as info.hz = sample rate, info.channels = mono(1)/stereo(2), info.bitrate_kbps = bitrate in kbits.  
+If ``frame_bytes == 0``, the other fields may be uninitialized or unchanged; if
+``frame_bytes != 0``, the other fields are available. The application may call 
+``mp3dec_init()`` when changing decode position, but this is not necessary.  
 
-Application may call mp3dec_init() when changing decode position, however, it is not necessary.  
-
-As a special case, decoder support already splitted MP3 streams (for ex, after MP4 demux). In this case input buffer must contains exactly 1 non-free-format frame.  
+As a special case, the decoder supports already split MP3 streams (for example,
+after doing an MP4 demux). In this case, the input buffer must contain _exactly
+one_ non-free-format frame.
 
 ## Seeking
 
-You can just seek to any byte in the middle of stream and call mp3dec_decode_frame, it works almost always, but not 100% guaranteed. If granule data accidentally detected as valid mp3 header, short audio artifacts is possible.
-However, if file known to be cbr, frames have equal size and do not have id3 tags we can decode first frame and calculate all frame positions: info.frame_bytes*N.
-Note that because of padding, frames can differ in size even in cbr case.
+You can seek to any byte in the stream and call ``mp3dec_decode_frame``; this
+will work in almost all cases, but is not completely guaranteed. If granule data
+is accidentally detected as a valid MP3 header, short audio artefacting is
+possible. If the file is known to be cbr, then all frames have equal size and
+lack ID3 tags, which allows us to decode the first frame and calculate all frame
+positions as ``frame_bytes * N``. However, because of padding, frames can differ
+in size even in this case.
