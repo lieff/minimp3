@@ -36,7 +36,7 @@ Comparison by features:
 | Keyj minimp3 | Current |
 | ------------ | ------- |
 | Fixed point  | Floating point |
-| source: 84kb | 68kb |
+| source: 84kb | 69kb |
 | no vector opts | SSE/NEON intrinsics |
 
 Below, you can find the benchmark and conformance test for keyj's minimp3: 
@@ -65,6 +65,7 @@ format is unsupported. This caused some problems when it was used
 First, we need to initialize the decoder structure:
 
 ```
+//#define MINIMP3_ONLY_MP3
 #define MINIMP3_IMPLEMENTATION
 #include "minimp3.h"
 ...
@@ -74,6 +75,7 @@ First, we need to initialize the decoder structure:
 
 Note that you must define ``MINIMP3_IMPLEMENTATION`` in exactly one source file.
 You can ``#include`` ``minimp3.h`` in as many files as you like.
+Also you can use ``MINIMP3_ONLY_MP3`` define to strip MP1/MP2 decoding code.
 
 Then. we decode the input stream frame-by-frame:
 
