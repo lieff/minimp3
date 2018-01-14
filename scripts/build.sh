@@ -6,17 +6,12 @@ pushd $CUR_DIR/..
 
 set -e
 
+gcc -coverage -O0 -o minimp3 minimp3_test.c -lm
+gcov minimp3_test.c
+
+scripts/test.sh
+
 gcc -O2 -g -Wall -Wextra -fno-asynchronous-unwind-tables -fno-stack-protector -ffunction-sections \
 -fdata-sections -Wl,--gc-sections -o minimp3 minimp3_test.c -lm
 
-APP=./minimp3
-
-set +e
-for i in vectors/*.bit; do
-$APP $i ${i%.*}.pcm
-retval=$?
-echo $i exited with code=$retval
-if [ ! $retval -eq 0 ]; then
-  exit 1
-fi
-done
+scripts/test.sh

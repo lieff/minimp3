@@ -1,2 +1,5 @@
 fate-suite.ffmpeg.org
 minimp3
+*.gcda
+*.gcno
+*.gcov
