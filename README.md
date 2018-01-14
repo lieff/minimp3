@@ -6,6 +6,7 @@ minimp3
   <img alt="Coverity Scan Build Status"
        src="https://scan.coverity.com/projects/14844/badge.svg"/>
 </a>
+[![codecov](https://codecov.io/gh/lieff/minimp3/branch/master/graph/badge.svg)](https://codecov.io/gh/lieff/minimp3)
 
 Minimalistic, single-header library for decoding MP3. minimp3 is designed to be
 small, fast (with SSE and NEON support), and accurate (ISO conformant). You can
