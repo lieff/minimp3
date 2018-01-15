@@ -128,6 +128,11 @@ static int have_simd()
 {
     static int g_have_simd;
     int CPUInfo[4];
+#ifdef MINIMP3_TEST
+    static int g_counter;
+    if (g_counter++ > 100)
+        goto test_nosimd;
+#endif
     if (g_have_simd)
         return g_have_simd - 1;
     minimp3_cpuid(CPUInfo, 0);
@@ -137,6 +142,9 @@ static int have_simd()
         g_have_simd = (CPUInfo[3] & (1 << 26)) + 1; // SSE2
         return g_have_simd - 1;
     }
+#ifdef MINIMP3_TEST
+test_nosimd:
+#endif
     g_have_simd = 1;
     return 0;
 }
