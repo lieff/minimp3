@@ -6,7 +6,7 @@ pushd $CUR_DIR/..
 
 set -e
 
-gcc -coverage -O0 -o minimp3 minimp3_test.c -lm
+gcc -coverage -O0 -DMINIMP3_TEST -o minimp3 minimp3_test.c -lm
 gcov minimp3_test.c
 
 scripts/test.sh
