@@ -40,16 +40,19 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
         samples = mp3dec_decode_frame(&mp3d, buf, nbuf, pcm, &info);
         if (samples)
         {
-            int readed = fread(pcm2, 1, 2*info.channels*samples, file_ref);
-            if (readed < 0)
-                exit(1);
-            total_samples += samples*info.channels;
-            for (i = 0; i < samples*info.channels; i++)
+            if (file_ref)
             {
-                int MSEtemp = abs((int)pcm[i] - (int)pcm2[i]);
-                if (MSEtemp > maxdiff)
-                    maxdiff = MSEtemp;
-                MSE += MSEtemp*MSEtemp;
+                int readed = fread(pcm2, 1, 2*info.channels*samples, file_ref);
+                if (readed < 0)
+                    exit(1);
+                total_samples += samples*info.channels;
+                for (i = 0; i < samples*info.channels; i++)
+                {
+                    int MSEtemp = abs((int)pcm[i] - (int)pcm2[i]);
+                    if (MSEtemp > maxdiff)
+                        maxdiff = MSEtemp;
+                    MSE += MSEtemp*MSEtemp;
+                }
             }
             if (file_out)
                 fwrite(pcm, samples, 2*info.channels, file_out);
@@ -57,7 +60,7 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
         memmove(buf, buf + info.frame_bytes, nbuf -= info.frame_bytes);
     } while (info.frame_bytes);
 
-    MSE /= total_samples;
+    MSE /= total_samples ? total_samples : 1;
     if (0 == MSE)
         psnr = 99.0;
     else
@@ -73,7 +76,8 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
     //rewind(file_wav);
     //fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_wav);
     fclose(file_mp3);
-    fclose(file_ref);
+    if (file_ref)
+        fclose(file_ref);
     if (file_out)
         fclose(file_out);
 }
@@ -83,7 +87,7 @@ int main(int argc, char *argv[])
     char *input_file_name  = (argc > 1) ? argv[1] : NULL;
     char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
     char *output_file_name = (argc > 3) ? argv[3] : NULL;
-    if (!input_file_name || !ref_file_name)
+    if (!input_file_name)
     {
         printf("error: no file names given\n");
         return 1;
