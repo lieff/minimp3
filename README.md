@@ -37,7 +37,9 @@ Comparison by features:
 | ------------ | ------- |
 | Fixed point  | Floating point |
 | source: 84kb | 69kb |
+| binary: 34kb (20kb compressed) | 30kb (20kb) |
 | no vector opts | SSE/NEON intrinsics |
+| no free format | free format support |
 
 Below, you can find the benchmark and conformance test for keyj's minimp3: 
 
