@@ -7,11 +7,9 @@ pushd $CUR_DIR/..
 set -e
 
 gcc -coverage -O0 -DMINIMP3_TEST -o minimp3 minimp3_test.c -lm
-gcov minimp3_test.c
-
 scripts/test.sh
+gcov minimp3_test.c
 
 gcc -O2 -g -Wall -Wextra -fno-asynchronous-unwind-tables -fno-stack-protector -ffunction-sections \
 -fdata-sections -Wl,--gc-sections -o minimp3 minimp3_test.c -lm
-
 scripts/test.sh
