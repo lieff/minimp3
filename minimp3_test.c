@@ -3,8 +3,9 @@
 #include "minimp3.h"
 #include <stdio.h>
 #include <math.h>
+#include <string.h>
 
-/*static char *wav_header(int hz, int ch, int bips, int data_bytes)
+static char *wav_header(int hz, int ch, int bips, int data_bytes)
 {
     static char hdr[44] = "RIFFsizeWAVEfmt \x10\0\0\0\1\0ch_hz_abpsbabsdatasize";
     unsigned long nAvgBytesPerSec = bips*ch*hz >> 3;
@@ -19,19 +20,20 @@
     *(short *)(hdr + 0x22) = bips;
     *(int *  )(hdr + 0x28) = data_bytes;
     return hdr;
-}*/
+}
 
-static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
+static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const int wave_out)
 {
     static mp3dec_t mp3d;
     mp3dec_frame_info_t info;
-    int i, /*data_bytes, */samples, total_samples = 0, nbuf = 0, maxdiff = 0;
+    int i, data_bytes, samples, total_samples = 0, nbuf = 0, maxdiff = 0;
     double MSE = 0.0, psnr;
     unsigned char buf[4096];
 
     mp3dec_init(&mp3d);
 
-    //fwrite(wav_header(0, 0, 0, 0), 1, 44, file_wav);
+    if (wave_out)
+        fwrite(wav_header(0, 0, 0, 0), 1, 44, file_out);
 
     do
     {
@@ -72,9 +74,12 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out)
         exit(1);
     }
 
-    //data_bytes = ftell(file_wav) - 44;
-    //rewind(file_wav);
-    //fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_wav);
+    if (wave_out)
+    {
+        data_bytes = ftell(file_out) - 44;
+        rewind(file_out);
+        fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_out);
+    }
     fclose(file_mp3);
     if (file_ref)
         fclose(file_ref);
@@ -87,11 +92,20 @@ int main(int argc, char *argv[])
     char *input_file_name  = (argc > 1) ? argv[1] : NULL;
     char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
     char *output_file_name = (argc > 3) ? argv[3] : NULL;
+    int wave_out = 0;
+
+    if (output_file_name)
+    {
+        char *ext = strrchr(output_file_name, '.');
+        if (ext && !strcasecmp(ext+1, "wav"))
+            wave_out = 1;
+    }
+
     if (!input_file_name)
     {
         printf("error: no file names given\n");
         return 1;
     }
-    decode_file(fopen(input_file_name, "rb"), fopen(ref_file_name, "rb"), output_file_name ? fopen(output_file_name, "wb") : NULL);
+    decode_file(fopen(input_file_name, "rb"), fopen(ref_file_name, "rb"), output_file_name ? fopen(output_file_name, "wb") : NULL, wave_out);
     return 0;
 }
