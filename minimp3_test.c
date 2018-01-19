@@ -5,6 +5,7 @@
 #include <math.h>
 #include <string.h>
 
+#ifndef MINIMP3_NO_WAV
 static char *wav_header(int hz, int ch, int bips, int data_bytes)
 {
     static char hdr[44] = "RIFFsizeWAVEfmt \x10\0\0\0\1\0ch_hz_abpsbabsdatasize";
@@ -21,45 +22,62 @@ static char *wav_header(int hz, int ch, int bips, int data_bytes)
     *(int *  )(hdr + 0x28) = data_bytes;
     return hdr;
 }
+#endif
+
+static unsigned char *preload(FILE *file, int *data_size)
+{
+    unsigned char *data;
+    *data_size = 0;
+    if (!file)
+        return 0;
+    fseek(file, 0, SEEK_END);
+    *data_size = (int)ftell(file);
+    fseek(file, 0, SEEK_SET);
+    data = (unsigned char*)malloc(*data_size);
+    if (!data)
+        return 0;
+    if ((int)fread(data, 1, *data_size, file) != *data_size)
+        exit(1);
+    return data;
+}
 
 static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const int wave_out)
 {
     static mp3dec_t mp3d;
     mp3dec_frame_info_t info;
-    int i, data_bytes, samples, total_samples = 0, nbuf = 0, maxdiff = 0;
+    int i, data_bytes, samples, total_samples = 0, maxdiff = 0, mp3_size, ref_size;
     double MSE = 0.0, psnr;
-    unsigned char buf[4096];
+    unsigned char *buf_mp3 = preload(file_mp3, &mp3_size), *buf_ref = preload(file_ref, &ref_size);
 
     mp3dec_init(&mp3d);
-
+#ifndef MINIMP3_NO_WAV
     if (wave_out)
         fwrite(wav_header(0, 0, 0, 0), 1, 44, file_out);
-
+#endif
     do
     {
-        short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME], pcm2[MINIMP3_MAX_SAMPLES_PER_FRAME];
-        nbuf += fread(buf + nbuf, 1, sizeof(buf) - nbuf, file_mp3);
-        samples = mp3dec_decode_frame(&mp3d, buf, nbuf, pcm, &info);
+        short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+        samples = mp3dec_decode_frame(&mp3d, buf_mp3, mp3_size, pcm, &info);
         if (samples)
         {
-            if (file_ref)
+            if (buf_ref && ref_size >= samples*info.channels*2)
             {
-                int readed = fread(pcm2, 1, 2*info.channels*samples, file_ref);
-                if (readed < 0)
-                    exit(1);
                 total_samples += samples*info.channels;
                 for (i = 0; i < samples*info.channels; i++)
                 {
-                    int MSEtemp = abs((int)pcm[i] - (int)pcm2[i]);
+                    int MSEtemp = abs((int)pcm[i] - (int)(((short*)buf_ref)[i]));
                     if (MSEtemp > maxdiff)
                         maxdiff = MSEtemp;
                     MSE += MSEtemp*MSEtemp;
                 }
+                buf_ref  += samples*info.channels*2;
+                ref_size -= samples*info.channels*2;
             }
             if (file_out)
                 fwrite(pcm, samples, 2*info.channels, file_out);
         }
-        memmove(buf, buf + info.frame_bytes, nbuf -= info.frame_bytes);
+        buf_mp3  += info.frame_bytes;
+        mp3_size -= info.frame_bytes;
     } while (info.frame_bytes);
 
     MSE /= total_samples ? total_samples : 1;
@@ -73,13 +91,14 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
         printf("PSNR compliance failed\n");
         exit(1);
     }
-
+#ifndef MINIMP3_NO_WAV
     if (wave_out)
     {
         data_bytes = ftell(file_out) - 44;
         rewind(file_out);
         fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_out);
     }
+#endif
     fclose(file_mp3);
     if (file_ref)
         fclose(file_ref);
@@ -93,14 +112,14 @@ int main(int argc, char *argv[])
     char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
     char *output_file_name = (argc > 3) ? argv[3] : NULL;
     int wave_out = 0;
-
+#ifndef MINIMP3_NO_WAV
     if (output_file_name)
     {
         char *ext = strrchr(output_file_name, '.');
         if (ext && !strcasecmp(ext+1, "wav"))
             wave_out = 1;
     }
-
+#endif
     if (!input_file_name)
     {
         printf("error: no file names given\n");
