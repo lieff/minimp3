@@ -142,3 +142,11 @@ possible. If the file is known to be cbr, then all frames have equal size and
 lack ID3 tags, which allows us to decode the first frame and calculate all frame
 positions as ``frame_bytes * N``. However, because of padding, frames can differ
 in size even in this case.
+
+## Interesting links
+
+ * http://keyj.emphy.de/minimp3/
+ * https://github.com/technosaurus/PDMP3
+ * http://blog.bjrn.se/2008/10/lets-build-mp3-decoder.html
+ * http://www.mp3-converter.com/mp3codec/
+ * http://www.multiweb.cz/twoinches/mp3inside.htm
