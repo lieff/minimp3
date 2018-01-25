@@ -27,8 +27,6 @@ typedef struct
     unsigned char reserv_buf[511];
 } mp3dec_t;
 
-#ifndef MINIMP3_IMPLEMENTATION
-
 #ifdef __cplusplus
 extern "C" {
 #endif  //__cplusplus
@@ -40,7 +38,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, 
 }
 #endif //__cplusplus
 
-#else //MINIMP3_IMPLEMENTATION
+#ifdef MINIMP3_IMPLEMENTATION
 
 #include <stdlib.h>
 #include <string.h>
