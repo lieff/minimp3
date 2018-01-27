@@ -7,7 +7,7 @@ compiler:
     - gcc
 
 before_install:
-    - if [ $TRAVIS_OS_NAME == linux ]; then sudo apt-get install -y wget; fi
+    - if [ $TRAVIS_OS_NAME == linux ]; then sudo apt-get install -y libc6-dev-i386 g++-multilib; fi
 
 script:
     - scripts/build.sh
