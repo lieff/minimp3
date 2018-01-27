@@ -80,7 +80,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, 
 #define MINIMP3_MIN(a, b)           ((a) > (b) ? (b) : (a))
 #define MINIMP3_MAX(a, b)           ((a) < (b) ? (b) : (a))
 
-#if defined(_M_X64) || defined(_M_ARM64) || (defined(__x86_64__) && defined(__SSE2__)) || defined(__aarch64__)
+#if !defined(MINIMP3_ONLY_SIMD) && (defined(_M_X64) || defined(_M_ARM64) || (defined(__x86_64__) && defined(__SSE2__)) || defined(__aarch64__))
 // x64 always have SSE2, arm64 always have neon, no need for generic code
 #define MINIMP3_ONLY_SIMD
 #endif

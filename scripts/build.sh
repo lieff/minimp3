@@ -6,7 +6,7 @@ pushd $CUR_DIR/..
 
 set -e
 
-gcc -coverage -O0 -DMINIMP3_TEST -DMINIMP3_NO_WAV -o minimp3 minimp3_test.c -lm
+gcc -coverage -O0 -m32 -msse2 -DMINIMP3_TEST -DMINIMP3_NO_WAV -o minimp3 minimp3_test.c -lm
 scripts/test.sh
 gcov minimp3_test.c
 
