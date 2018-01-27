@@ -176,6 +176,9 @@ static int have_simd()
 }
 #else
 #   define HAVE_SIMD 0
+#ifdef MINIMP3_ONLY_SIMD
+#error MINIMP3_ONLY_SIMD used, but SSE/NEON not enabled
+#endif
 #endif
 
 typedef struct
