@@ -80,6 +80,11 @@ int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, 
 #define MINIMP3_MIN(a, b)           ((a) > (b) ? (b) : (a))
 #define MINIMP3_MAX(a, b)           ((a) < (b) ? (b) : (a))
 
+#if defined(_M_X64) || defined(_M_ARM64) || (defined(__x86_64__) && defined(__SSE2__)) || defined(__aarch64__)
+// x64 always have SSE2, arm64 always have neon, no need for generic code
+#define MINIMP3_ONLY_SIMD
+#endif
+
 #if defined(_MSC_VER) || ((defined(__i386__) || defined(__x86_64__)) && defined(__SSE2__))
 #   include <immintrin.h>
 #   define HAVE_SSE 1
@@ -95,7 +100,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, 
 #   define VMUL_S(x, s)  _mm_mul_ps(x, _mm_set1_ps(s))
 #   define VREV(x) _mm_shuffle_ps(x, x, _MM_SHUFFLE(0, 1, 2, 3))
 typedef __m128 f4;
-#ifdef _MSC_VER
+#if defined(_MSC_VER) || defined(MINIMP3_ONLY_SIMD)
 #define minimp3_cpuid __cpuid
 #else
 static __inline__ __attribute__((always_inline)) void minimp3_cpuid(int CPUInfo[], const int InfoType)
@@ -124,6 +129,9 @@ static __inline__ __attribute__((always_inline)) void minimp3_cpuid(int CPUInfo[
 #endif
 static int have_simd()
 {
+#ifdef MINIMP3_ONLY_SIMD
+    return 1;
+#else
     static int g_have_simd;
     int CPUInfo[4];
 #ifdef MINIMP3_TEST
@@ -145,6 +153,7 @@ test_nosimd:
 #endif
     g_have_simd = 1;
     return 0;
+#endif
 }
 #elif defined(__arm)
 #   include <arm_neon.h>
@@ -162,7 +171,7 @@ test_nosimd:
 #   define VREV(x) vrev64q_f32(x)
 typedef float32x4_t f4;
 static int have_simd()
-{
+{   // TODO: detect neon for !MINIMP3_ONLY_SIMD
     return 1;
 }
 #else
@@ -982,6 +991,7 @@ static void L3_antialias(float *grbuf, int nbands)
             VSTORE(grbuf + 14 - i, VREV(vd));
         }
 #endif
+#ifndef MINIMP3_ONLY_SIMD
         for(; i < 8; i++)
         {
             float u = grbuf[18 + i];
@@ -989,6 +999,7 @@ static void L3_antialias(float *grbuf, int nbands)
             grbuf[18 + i] = u*g_aa[0][i] - d*g_aa[1][i];
             grbuf[17 - i] = u*g_aa[1][i] + d*g_aa[0][i];
         }
+#endif
     }
 }
 
@@ -1310,6 +1321,9 @@ static void mp3d_DCT_II(float *grbuf, int n)
         }
     } else
 #endif
+#ifdef MINIMP3_ONLY_SIMD
+    {}
+#else
     for (; k < n; k++)
     {
         float t[4][8], *x, *y = grbuf + k;
@@ -1368,6 +1382,7 @@ static void mp3d_DCT_II(float *grbuf, int n)
         y[2*18] = t[1][7];
         y[3*18] = t[3][7];
     }
+#endif
 }
 
 static short mp3d_scale_pcm(float sample)
@@ -1493,6 +1508,9 @@ static void mp3d_synth(float *xl, short *dstl, int nch, float *lins)
         }
     } else
 #endif
+#ifdef MINIMP3_ONLY_SIMD
+    {}
+#else
     for (i = 14; i >= 0; i--)
     {
 #define LOAD(k) float w0 = *w++; float w1 = *w++; float * vz = &zlin[4*i - k*64]; float * vy = &zlin[4*i - (15 - k)*64];
@@ -1521,6 +1539,7 @@ static void mp3d_synth(float *xl, short *dstl, int nch, float *lins)
         dstl[(47 - i)*nch] = mp3d_scale_pcm(a[2]);
         dstl[(49 + i)*nch] = mp3d_scale_pcm(b[2]);
     }
+#endif
 }
 
 static void mp3d_synth_granule(float *qmf_state, float *grbuf, int nbands, int nch, short *pcm, float *lins)

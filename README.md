@@ -78,6 +78,7 @@ First, we need to initialize the decoder structure:
 Note that you must define ``MINIMP3_IMPLEMENTATION`` in exactly one source file.
 You can ``#include`` ``minimp3.h`` in as many files as you like.
 Also you can use ``MINIMP3_ONLY_MP3`` define to strip MP1/MP2 decoding code.
+MINIMP3_ONLY_SIMD define controls generic (non SSE/NEON) code generation (always enabled on x64/arm64 targets).
 
 Then. we decode the input stream frame-by-frame:
 
