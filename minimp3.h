@@ -157,7 +157,6 @@ test_nosimd:
 }
 #elif defined(__arm)
 #   include <arm_neon.h>
-#   define HAVE_NEON 1
 #   define HAVE_SIMD 1
 #   define VSTORE vst1q_f32
 #   define VLD vld1q_f32
