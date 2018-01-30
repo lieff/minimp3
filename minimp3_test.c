@@ -1,10 +1,11 @@
-//#define MINIMP3_ONLY_MP3
-//#define MINIMP3_ONLY_SIMD
+/*#define MINIMP3_ONLY_MP3*/
+/*#define MINIMP3_ONLY_SIMD*/
 #define MINIMP3_IMPLEMENTATION
 #include "minimp3.h"
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <strings.h>
 
 #ifndef MINIMP3_NO_WAV
 static char *wav_header(int hz, int ch, int bips, int data_bytes)
@@ -13,8 +14,8 @@ static char *wav_header(int hz, int ch, int bips, int data_bytes)
     unsigned long nAvgBytesPerSec = bips*ch*hz >> 3;
     unsigned int nBlockAlign      = bips*ch >> 3;
 
-    *(int *  )(hdr + 0x04) = 44 + data_bytes - 8;   // File size - 8
-    *(short *)(hdr + 0x14) = 1;                     // Integer PCM format
+    *(int *  )(hdr + 0x04) = 44 + data_bytes - 8;   /* File size - 8 */
+    *(short *)(hdr + 0x14) = 1;                     /* Integer PCM format */
     *(short *)(hdr + 0x16) = ch;
     *(int *  )(hdr + 0x18) = hz;
     *(int *  )(hdr + 0x1C) = nAvgBytesPerSec;
@@ -45,7 +46,7 @@ static unsigned char *preload(FILE *file, int *data_size)
 static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const int wave_out)
 {
     static mp3dec_t mp3d;
-    mp3dec_frame_info_t info = {};
+    mp3dec_frame_info_t info = { 0, };
     int i, data_bytes, samples, total_samples = 0, maxdiff = 0, mp3_size, ref_size;
     double MSE = 0.0, psnr;
     unsigned char *buf_mp3 = preload(file_mp3, &mp3_size), *buf_ref = preload(file_ref, &ref_size);
