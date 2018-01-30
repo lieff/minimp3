@@ -45,7 +45,7 @@ static unsigned char *preload(FILE *file, int *data_size)
 static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const int wave_out)
 {
     static mp3dec_t mp3d;
-    mp3dec_frame_info_t info;
+    mp3dec_frame_info_t info = {};
     int i, data_bytes, samples, total_samples = 0, maxdiff = 0, mp3_size, ref_size;
     double MSE = 0.0, psnr;
     unsigned char *buf_mp3 = preload(file_mp3, &mp3_size), *buf_ref = preload(file_ref, &ref_size);
