@@ -113,7 +113,12 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
         fclose(file_out);
 }
 
+#ifdef __arm__
+int main2(int argc, char *argv[]);
+int main2(int argc, char *argv[])
+#else
 int main(int argc, char *argv[])
+#endif
 {
     char *input_file_name  = (argc > 1) ? argv[1] : NULL;
     char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
@@ -123,7 +128,7 @@ int main(int argc, char *argv[])
     if (output_file_name)
     {
         char *ext = strrchr(output_file_name, '.');
-        if (ext && !strcasecmp(ext+1, "wav"))
+        if (ext && !strcasecmp(ext + 1, "wav"))
             wave_out = 1;
     }
 #endif
@@ -135,3 +140,97 @@ int main(int argc, char *argv[])
     decode_file(fopen(input_file_name, "rb"), fopen(ref_file_name, "rb"), output_file_name ? fopen(output_file_name, "wb") : NULL, wave_out);
     return 0;
 }
+
+#ifdef __arm__
+static const char *g_files[] = {
+    "vectors/ILL2_center2.bit",
+    "vectors/ILL2_dual.bit",
+    "vectors/ILL2_dynx22.bit",
+    "vectors/ILL2_dynx31.bit",
+    "vectors/ILL2_dynx32.bit",
+    "vectors/ILL2_ext_switching.bit",
+    "vectors/ILL2_layer1.bit",
+    "vectors/ILL2_layer3.bit",
+    "vectors/ILL2_mono.bit",
+    "vectors/ILL2_multilingual.bit",
+    "vectors/ILL2_overalloc1.bit",
+    "vectors/ILL2_overalloc2.bit",
+    "vectors/ILL2_prediction.bit",
+    "vectors/ILL2_samples.bit",
+    "vectors/ILL2_scf63.bit",
+    "vectors/ILL2_tca21.bit",
+    "vectors/ILL2_tca30.bit",
+    "vectors/ILL2_tca30_PC.bit",
+    "vectors/ILL2_tca31_mtx0.bit",
+    "vectors/ILL2_tca31_mtx2.bit",
+    "vectors/ILL2_tca31_PC.bit",
+    "vectors/ILL2_tca32_PC.bit",
+    "vectors/ILL2_wrongcrc.bit",
+    "vectors/ILL4_ext_id1.bit",
+    "vectors/ILL4_sync.bit",
+    "vectors/ILL4_wrongcrc.bit",
+    "vectors/ILL4_wrong_length1.bit",
+    "vectors/ILL4_wrong_length2.bit",
+    "vectors/l1-fl1.bit",
+    "vectors/l1-fl2.bit",
+    "vectors/l1-fl3.bit",
+    "vectors/l1-fl4.bit",
+    "vectors/l1-fl5.bit",
+    "vectors/l1-fl6.bit",
+    "vectors/l1-fl7.bit",
+    "vectors/l1-fl8.bit",
+    "vectors/l2-fl10.bit",
+    "vectors/l2-fl11.bit",
+    "vectors/l2-fl12.bit",
+    "vectors/l2-fl13.bit",
+    "vectors/l2-fl14.bit",
+    "vectors/l2-fl15.bit",
+    "vectors/l2-fl16.bit",
+    "vectors/l2-nonstandard-fl1_fl2_ff.bit",
+    "vectors/l2-nonstandard-free_format.bit",
+    "vectors/l2-nonstandard-test32-size.bit",
+    "vectors/l2-test32.bit",
+    "vectors/l3-compl.bit",
+    "vectors/l3-he_32khz.bit",
+    "vectors/l3-he_44khz.bit",
+    "vectors/l3-he_48khz.bit",
+    "vectors/l3-hecommon.bit",
+    "vectors/l3-he_free.bit",
+    "vectors/l3-he_mode.bit",
+    "vectors/l3-nonstandard-compl-sideinfo-bigvalues.bit",
+    "vectors/l3-nonstandard-compl-sideinfo-blocktype.bit",
+    "vectors/l3-nonstandard-compl-sideinfo-size.bit",
+    "vectors/l3-si.bit",
+    "vectors/l3-si_block.bit",
+    "vectors/l3-si_huff.bit",
+    "vectors/l3-sin1k0db.bit",
+    "vectors/M2L3_bitrate_16_all.bit",
+    "vectors/M2L3_bitrate_22_all.bit",
+    "vectors/M2L3_bitrate_24_all.bit",
+    "vectors/M2L3_compl24.bit",
+    "vectors/M2L3_noise.bit"
+};
+int main()
+{
+    size_t i;
+    char buf[256];
+    char *v[3];
+    v[2] = buf;
+    for (i = 0; i < sizeof(g_files)/sizeof(g_files[0]); i++)
+    {
+        int ret;
+        const char *file = g_files[i];
+        size_t len = strlen(file);
+        strcpy(buf, file);
+        buf[len - 3] = 'p';
+        buf[len - 2] = 'c';
+        buf[len - 1] = 'm';
+        v[1] = (char*)file;
+        printf("%s\n", file);
+        ret = main2(3, v);
+        if (ret)
+            return ret;
+    }
+    return 0;
+}
+#endif
