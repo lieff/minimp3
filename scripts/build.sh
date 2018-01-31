@@ -13,3 +13,8 @@ gcov minimp3_test.c
 gcc -O2 -g -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
 -ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3 minimp3_test.c -lm
 scripts/test.sh
+
+arm-none-eabi-gcc -O2 -g -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
+-mthumb -mcpu=cortex-m4 \
+-ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
+qemu-arm ./minimp3_arm
