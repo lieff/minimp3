@@ -18,3 +18,8 @@ arm-none-eabi-gcc -O2 -g -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fn
 -mthumb -mcpu=cortex-m4 \
 -ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
 qemu-arm ./minimp3_arm
+
+#arm-none-eabi-gcc -O2 -g -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
+#-marm -mcpu=cortex-a15 -mfpu=neon -mfloat-abi=softfp \
+#-ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
+#qemu-arm ./minimp3_arm
