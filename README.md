@@ -155,6 +155,7 @@ in size even in this case.
  * http://keyj.emphy.de/minimp3/
  * https://github.com/technosaurus/PDMP3
  * https://github.com/technosaurus/PDMP2
+ * https://github.com/packjpg/packMP3
  * https://sites.google.com/a/kmlager.com/www/projects
  * https://sourceforge.net/projects/mp3dec/
  * http://blog.bjrn.se/2008/10/lets-build-mp3-decoder.html
