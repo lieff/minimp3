@@ -50,6 +50,7 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
     int i, data_bytes, samples, total_samples = 0, maxdiff = 0, mp3_size, ref_size;
     double MSE = 0.0, psnr;
     unsigned char *buf_mp3 = preload(file_mp3, &mp3_size), *buf_ref = preload(file_ref, &ref_size);
+    unsigned char *alloc_buf_mp3 = buf_mp3, *alloc_buf_ref = buf_ref;
 
     mp3dec_init(&mp3d);
 #ifndef MINIMP3_NO_WAV
@@ -101,6 +102,10 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
         fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_out);
     }
 #endif
+    if (alloc_buf_mp3)
+        free(alloc_buf_mp3);
+    if (alloc_buf_ref)
+        free(alloc_buf_ref);
     fclose(file_mp3);
     if (file_ref)
         fclose(file_ref);
