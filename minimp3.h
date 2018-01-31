@@ -770,7 +770,7 @@ static void L3_huffman(float *dst, bs_t *bs, const L3_gr_info_t *gr_info, const 
     int ireg = 0, big_val_cnt = gr_info->big_values;
     const uint8_t *sfb = gr_info->sfbtab;
     const uint8_t *bs_next_ptr = bs->buf + bs->pos/8;
-    uint32_t bs_cache = (((bs_next_ptr[0]*256 + bs_next_ptr[1])*256 + bs_next_ptr[2])*256 + bs_next_ptr[3]) << (bs->pos & 7);
+    uint32_t bs_cache = (((bs_next_ptr[0]*256u + bs_next_ptr[1])*256u + bs_next_ptr[2])*256u + bs_next_ptr[3]) << (bs->pos & 7);
     int pairs_to_decode, np, bs_sh = (bs->pos & 7) - 8;
     bs_next_ptr += 4;
 
