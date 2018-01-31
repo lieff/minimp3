@@ -167,7 +167,8 @@ test_nosimd:
 #   define VMAC(a, x, y) vmlaq_f32(a, x, y)
 #   define VMSB(a, x, y) vmlsq_f32(a, x, y)
 #   define VMUL_S(x, s)  vmulq_f32(x, vmovq_n_f32(s))
-#   define VREV(x) vrev64q_f32(x)
+/*#   define VREV(x) vcombine_f32(vrev64_f32(vget_high_f32(x)), vrev64_f32(vget_low_f32(x)))*/
+#   define VREV(x) vcombine_f32(vget_high_f32(vrev64q_f32(x)), vget_low_f32(vrev64q_f32(x)))
 typedef float32x4_t f4;
 static int have_simd()
 {   /* TODO: detect neon for !MINIMP3_ONLY_SIMD */
