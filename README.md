@@ -160,3 +160,6 @@ in size even in this case.
  * http://blog.bjrn.se/2008/10/lets-build-mp3-decoder.html
  * http://www.mp3-converter.com/mp3codec/
  * http://www.multiweb.cz/twoinches/mp3inside.htm
+ * https://www.mp3-tech.org/
+ * http://id3.org/mp3Frame
+ * https://www.datavoyage.com/mpgscript/mpeghdr.htm
