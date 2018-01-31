@@ -145,6 +145,11 @@ lack ID3 tags, which allows us to decode the first frame and calculate all frame
 positions as ``frame_bytes * N``. However, because of padding, frames can differ
 in size even in this case.
 
+## Bindings
+
+ * https://github.com/tosone/minimp3 - go bindings
+ * https://github.com/germangb/minimp3-rs - rust bindings
+
 ## Interesting links
 
  * http://keyj.emphy.de/minimp3/
