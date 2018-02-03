@@ -1,0 +1,1 @@
+gcc -O2 -o player player.cpp glad.c -lstdc++ -lglfw -lGL -lm -ldl
