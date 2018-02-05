@@ -10,7 +10,6 @@
 #include <OpenGL/gl3.h>
 #endif
 #include "FreeSans.h"
-#include "../minimp3.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
