@@ -10,6 +10,8 @@
 #include <OpenGL/gl3.h>
 #endif
 #include "FreeSans.h"
+#include "audio_sdl.h"
+#include "decode.h"
 
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb_image.h"
@@ -32,10 +34,11 @@
 #ifdef USE_GLES3
 static PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 #endif
-void       *_ctx;
-GLFWwindow *_mainWindow;
-std::map<std::string, int> _previews;
-std::vector<std::string> _playlist;
+static void       *_ctx;
+static GLFWwindow *_mainWindow;
+static std::map<std::string, int> _previews;
+static std::vector<std::string> _playlist;
+static void *_render;
 
 static int load_image(const stbi_uc *data, int len)
 {
@@ -156,7 +159,7 @@ static void tick()
             if (nk_button_label(ctx, "Play") && _selected < (int)_playlist.size())
             {
                 _play_state = 1;
-                //play();
+                preload_mp3(&_dec, _playlist[_selected].c_str());
             }
         } else
         {
@@ -196,10 +199,15 @@ static void tick()
 
 int main(int argc, char *argv[])
 {
+    InitializeCriticalSection(&_dec.mp3_lock);
+    sdl_audio_init(&_render, 44100, 2, 0, 0);
     init();
+    for (int i = 1; i < argc; i++)
+        _playlist.push_back(argv[i]);
     while (!glfwWindowShouldClose(_mainWindow))
     {
         tick();
     }
     close();
+    sdl_audio_release(_render);
 }

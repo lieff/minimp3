@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <string.h>
 #include <errno.h>
 #include <sys/mman.h>
@@ -26,8 +27,9 @@ static void add_audio(decoder *dec, short *buf, int bytes)
         if (dec->mp3_buf)
             free(dec->mp3_buf);
         dec->mp3_buf = (short *)buf_new;
-        dec->mp3_size += bytes;
     }
+    memcpy((char*)dec->mp3_buf + dec->mp3_size, buf, bytes);
+    dec->mp3_size += bytes;
     LeaveCriticalSection(&dec->mp3_lock);
 }
 
@@ -98,6 +100,7 @@ int preload_mp3(decoder *dec, const char *file_name)
         free(dec->mp3_buf);
         dec->mp3_buf = 0;
         dec->mp3_size = 0;
+        dec->mp3_pos = 0;
         dec->mp3_allocated = 0;
         dec->mp3_rate = 0;
         dec->mp3_channels = 0;
