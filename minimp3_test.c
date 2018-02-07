@@ -5,7 +5,11 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
-#include <strings.h>
+#if defined(_MSC_VER)
+    #define strcasecmp(str1, str2) _strnicmp(str1, str2, strlen(str2))
+#else
+    #include <strings.h>
+#endif
 
 #ifndef MINIMP3_NO_WAV
 static char *wav_header(int hz, int ch, int bips, int data_bytes)
