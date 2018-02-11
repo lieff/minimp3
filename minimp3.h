@@ -266,6 +266,7 @@ static int hdr_valid(const uint8_t *h)
 {
     return h[0] == 0xff &&
         ((h[1] & 0xF0) == 0xf0 || (h[1] & 0xFE) == 0xe2) &&
+        (HDR_GET_LAYER(h) != 0) &&
         (HDR_GET_BITRATE(h) != 15) &&
         (HDR_GET_SAMPLE_RATE(h) != 3);
 }
