@@ -36,7 +36,7 @@ Comparison by features:
 | Keyj minimp3 | Current |
 | ------------ | ------- |
 | Fixed point  | Floating point |
-| source: 84kb | 69kb |
+| source: 84kb | 70kb |
 | binary: 34kb (20kb compressed) | 30kb (20kb) |
 | no vector opts | SSE/NEON intrinsics |
 | no free format | free format support |

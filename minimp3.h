@@ -613,7 +613,7 @@ static int L3_read_side_info(bs_t *bs, L3_gr_info_t *gr, const uint8_t *hdr)
 static void L3_read_scalefactors(uint8_t *scf, uint8_t *ist_pos, const uint8_t *scf_size, const uint8_t *scf_count, bs_t *bitbuf, int scfsi)
 {
     int i, k;
-    for (i = 0; i < 4 && scf_count[i]; i++, scfsi <<= 1)
+    for (i = 0; i < 4 && scf_count[i]; i++, scfsi *= 2)
     {
         int cnt = scf_count[i];
         if (scfsi & 8)
