@@ -58,7 +58,7 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
 
     mp3dec_init(&mp3d);
 #ifndef MINIMP3_NO_WAV
-    if (wave_out)
+    if (wave_out && file_out)
         fwrite(wav_header(0, 0, 0, 0), 1, 44, file_out);
 #endif
     do
@@ -99,7 +99,7 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
         exit(1);
     }
 #ifndef MINIMP3_NO_WAV
-    if (wave_out)
+    if (wave_out && file_out)
     {
         data_bytes = ftell(file_out) - 44;
         rewind(file_out);
