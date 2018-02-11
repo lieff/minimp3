@@ -201,6 +201,7 @@ static const char *g_files[] = {
     "vectors/l3-hecommon.bit",
     "vectors/l3-he_free.bit",
     "vectors/l3-he_mode.bit",
+    "vectors/l3-nonstandard-big-iscf.bit",
     "vectors/l3-nonstandard-compl-sideinfo-bigvalues.bit",
     "vectors/l3-nonstandard-compl-sideinfo-blocktype.bit",
     "vectors/l3-nonstandard-compl-sideinfo-size.bit",
