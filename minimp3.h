@@ -1396,6 +1396,10 @@ static void mp3d_DCT_II(float *grbuf, int n)
 
 static short mp3d_scale_pcm(float sample)
 {
+#ifdef FUZZ
+    if (sample >  32767.0) return (short) 32767;
+    if (sample < -32768.0) return (short)-32768;
+#endif
     int s = (int)(sample + .5f);
     s -= (s < 0);   /* away from zero, to be compliant */
     if (s >  32767) return (short) 32767;
