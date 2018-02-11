@@ -716,7 +716,10 @@ static void L3_decode_scalefactors(const uint8_t *hdr, uint8_t *ist_pos, bs_t *b
 
     for (i = 0; i < (int)(gr->n_long_sfb + gr->n_short_sfb); i++)
     {
-        scf[i] = gain*L3_ldexp_q2(iscf[i] << scf_shift);
+        if (((iscf[i] << scf_shift) >> 2) >= 31)
+            scf[i] = gain*L3_ldexp_q2((iscf[i] << scf_shift) - 30*4) * /*L3_ldexp_q2(30*4)*/ 9.313226e-10f;
+        else
+            scf[i] = gain*L3_ldexp_q2(iscf[i] << scf_shift);
     }
 }
 
