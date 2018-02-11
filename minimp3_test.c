@@ -208,6 +208,8 @@ static const char *g_files[] = {
     "vectors/l3-si_block.bit",
     "vectors/l3-si_huff.bit",
     "vectors/l3-sin1k0db.bit",
+    "vectors/l3-test45.bit",
+    "vectors/l3-test46.bit",
     "vectors/M2L3_bitrate_16_all.bit",
     "vectors/M2L3_bitrate_22_all.bit",
     "vectors/M2L3_bitrate_24_all.bit",
