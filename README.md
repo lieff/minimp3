@@ -60,7 +60,7 @@ Below, you can find the benchmark and conformance test for keyj's minimp3:
 
 Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), and free 
 format is unsupported. This caused some problems when it was used 
-[here](https://github.com/lieff/lvg), and was the main motivation for this fork.
+[here](https://github.com/lieff/lvg), and was the main motivation for this work.
 
 ## Usage
 
