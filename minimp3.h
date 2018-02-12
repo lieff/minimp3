@@ -247,18 +247,14 @@ static uint32_t get_bits(bs_t *bs, int n)
     uint32_t next, cache = 0, s = bs->pos & 7;
     int shl = n + s;
     const uint8_t *p = bs->buf + (bs->pos >> 3);
-    if (bs->pos + n > bs->limit)
-    {
-        bs->pos = bs->limit;
+    if ((bs->pos += n) > bs->limit)
         return 0;
-    }
     next = *p++ & (255 >> s);
     while ((shl -= 8) > 0)
     {
         cache |= next << shl;
         next = *p++;
     }
-    bs->pos += n;
     return cache | (next >> -shl);
 }
 
@@ -315,7 +311,7 @@ static int hdr_padding(const uint8_t *h)
 }
 
 #ifndef MINIMP3_ONLY_MP3
-static const L12_subband_alloc_t * L12_subband_alloc_table(const uint8_t *hdr, L12_scale_info *sci)
+static const L12_subband_alloc_t *L12_subband_alloc_table(const uint8_t *hdr, L12_scale_info *sci)
 {
     const L12_subband_alloc_t *alloc;
     int mode = HDR_GET_STEREO_MODE(hdr);
@@ -643,10 +639,16 @@ static void L3_read_scalefactors(uint8_t *scf, uint8_t *ist_pos, const uint8_t *
     scf[0] = scf[1] = scf[2] = 0;
 }
 
-static float L3_ldexp_q2(int e)
+static float L3_ldexp_q2(float y, int exp_q2)
 {
     static const float g_expfrac[4] = { 9.31322575e-10f,7.83145814e-10f,6.58544508e-10f,5.53767716e-10f };
-    return g_expfrac[e & 3]*(1 << 30 >> (e >> 2));
+    int e;
+    do
+    {
+        e = MINIMP3_MIN(30*4, exp_q2);
+        y *= g_expfrac[e & 3]*(1 << 30 >> (e >> 2));
+    } while ((exp_q2 -= e) > 0);
+    return y;
 }
 
 static void L3_decode_scalefactors(const uint8_t *hdr, uint8_t *ist_pos, bs_t *bs, const L3_gr_info_t *gr, float *scf, int ch)
@@ -694,8 +696,7 @@ static void L3_decode_scalefactors(const uint8_t *hdr, uint8_t *ist_pos, bs_t *b
             iscf[gr->n_long_sfb + i + 1] += gr->subblock_gain[1] << sh;
             iscf[gr->n_long_sfb + i + 2] += gr->subblock_gain[2] << sh;
         }
-    }
-    else if (gr->preflag)
+    } else if (gr->preflag)
     {
         static const uint8_t g_preamp[10] = { 1,1,1,1,2,2,3,3,3,2 };
         for (i = 0; i < 10; i++)
@@ -705,21 +706,10 @@ static void L3_decode_scalefactors(const uint8_t *hdr, uint8_t *ist_pos, bs_t *b
     }
 
     gain_exp = gr->global_gain + BITS_DEQUANTIZER_OUT*4 - 210 - (HDR_IS_MS_STEREO(hdr) ? 2 : 0);
-    gain = 1 << (MAX_SCFI/4);
-
-    while (gain_exp < MAX_SCFI)
-    {
-        int dexp = MINIMP3_MIN(30*4, MAX_SCFI - gain_exp);
-        gain *= L3_ldexp_q2(dexp);
-        gain_exp += dexp;
-    }
-
+    gain = L3_ldexp_q2(1 << (MAX_SCFI/4),  MAX_SCFI - gain_exp);
     for (i = 0; i < (int)(gr->n_long_sfb + gr->n_short_sfb); i++)
     {
-        if (((iscf[i] << scf_shift) >> 2) >= 31)
-            scf[i] = gain*L3_ldexp_q2((iscf[i] << scf_shift) - 30*4) * /*L3_ldexp_q2(30*4)*/ 9.313226e-10f;
-        else
-            scf[i] = gain*L3_ldexp_q2(iscf[i] << scf_shift);
+        scf[i] = L3_ldexp_q2(gain, iscf[i] << scf_shift);
     }
 }
 
@@ -927,7 +917,7 @@ static void L3_stereo_process(float *left, const uint8_t *ist_pos, const uint8_t
             } else
             {
                 kl = 1;
-                kr = L3_ldexp_q2((ipos + 1) >> 1 << mpeg2_sh);
+                kr = L3_ldexp_q2(1, (ipos + 1) >> 1 << mpeg2_sh);
                 if (ipos & 1)
                 {
                     kl = kr;
@@ -1572,7 +1562,7 @@ static void mp3d_synth_granule(float *qmf_state, float *grbuf, int nbands, int n
     {
         mp3d_synth(grbuf + i, pcm + 32*nch*i, nch, lins + i*64);
     }
-
+#ifndef MINIMP3_NONSTANDARD_BUT_LOGICAL
     if (nch == 1)
     {
         for (i = 0; i < 15*64; i += 2)
@@ -1580,6 +1570,7 @@ static void mp3d_synth_granule(float *qmf_state, float *grbuf, int nbands, int n
             qmf_state[i] = lins[nbands*64 + i];
         }
     } else
+#endif
     {
         memcpy(qmf_state, lins + nbands*64, sizeof(float)*15*64);
     }
