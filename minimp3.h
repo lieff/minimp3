@@ -1675,7 +1675,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, short 
     if (info->layer == 3)
     {
         int main_data_begin = L3_read_side_info(bs_frame, scratch.gr_info, hdr);
-        if (main_data_begin < 0)
+        if (main_data_begin < 0 || bs_frame->pos > bs_frame->limit)
         {
             mp3dec_init(dec);
             return 0;
