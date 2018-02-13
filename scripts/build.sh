@@ -8,6 +8,10 @@ set -e
 
 gcc -coverage -O0 -m32 -std=c89 -msse2 -DMINIMP3_TEST -DMINIMP3_NO_WAV -o minimp3 minimp3_test.c -lm
 scripts/test.sh
+set +e
+./minimp3
+./minimp3 do_not_exist
+set -e
 gcov minimp3_test.c
 
 gcc -O2 -g -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
