@@ -125,6 +125,10 @@ int main2(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+    __AFL_INIT();
+    while (__AFL_LOOP(1000)) {
+#endif
     char *input_file_name  = (argc > 1) ? argv[1] : NULL;
     char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
     char *output_file_name = (argc > 3) ? argv[3] : NULL;
@@ -143,6 +147,9 @@ int main(int argc, char *argv[])
         return 1;
     }
     decode_file(fopen(input_file_name, "rb"), fopen(ref_file_name, "rb"), output_file_name ? fopen(output_file_name, "wb") : NULL, wave_out);
+#ifdef __AFL_HAVE_MANUAL_CONTROL
+    }
+#endif
     return 0;
 }
 
