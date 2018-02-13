@@ -48,14 +48,12 @@ static unsigned char *preload(FILE *file, int *data_size)
     return data;
 }
 
-static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const int wave_out)
+static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out)
 {
     static mp3dec_t mp3d;
     mp3dec_frame_info_t info = { 0, };
-    int i, data_bytes, samples, total_samples = 0, maxdiff = 0, mp3_size, ref_size;
+    int i, data_bytes, samples, total_samples = 0, maxdiff = 0;
     double MSE = 0.0, psnr;
-    unsigned char *buf_mp3 = preload(file_mp3, &mp3_size), *buf_ref = preload(file_ref, &ref_size);
-    unsigned char *alloc_buf_mp3 = buf_mp3, *alloc_buf_ref = buf_ref;
 
     mp3dec_init(&mp3d);
 #ifndef MINIMP3_NO_WAV
@@ -87,7 +85,7 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
         buf_mp3  += info.frame_bytes;
         mp3_size -= info.frame_bytes;
     } while (info.frame_bytes);
-
+#ifndef LIBFUZZER
     MSE /= total_samples ? total_samples : 1;
     if (0 == MSE)
         psnr = 99.0;
@@ -99,6 +97,7 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
         printf("PSNR compliance failed\n");
         exit(1);
     }
+#endif
 #ifndef MINIMP3_NO_WAV
     if (wave_out && file_out)
     {
@@ -107,16 +106,15 @@ static void decode_file(FILE *file_mp3, FILE *file_ref, FILE *file_out, const in
         fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_out);
     }
 #endif
-    if (alloc_buf_mp3)
-        free(alloc_buf_mp3);
-    if (alloc_buf_ref)
-        free(alloc_buf_ref);
-    fclose(file_mp3);
-    if (file_ref)
-        fclose(file_ref);
-    if (file_out)
-        fclose(file_out);
 }
+
+#ifdef LIBFUZZER
+int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
+{
+    decode_file(Data, Size, 0, 0, 0, 0);
+    return 0;
+}
+#else
 
 #ifdef __arm__
 int main2(int argc, char *argv[]);
@@ -125,31 +123,46 @@ int main2(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
+    int wave_out = 0, ref_size, mp3_size;
+    char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
+    char *output_file_name = (argc > 3) ? argv[3] : NULL;
+    FILE *file_out = NULL;
+    if (output_file_name)
+    {
+        file_out = fopen(output_file_name, "wb");
+#ifndef MINIMP3_NO_WAV
+        char *ext = strrchr(output_file_name, '.');
+        if (ext && !strcasecmp(ext + 1, "wav"))
+            wave_out = 1;
+#endif
+    }
+    FILE *file_ref = fopen(ref_file_name, "rb");
+    unsigned char *buf_ref = preload(file_ref, &ref_size);
+    if (file_ref)
+        fclose(file_ref);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     __AFL_INIT();
     while (__AFL_LOOP(1000)) {
 #endif
     char *input_file_name  = (argc > 1) ? argv[1] : NULL;
-    char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
-    char *output_file_name = (argc > 3) ? argv[3] : NULL;
-    int wave_out = 0;
-#ifndef MINIMP3_NO_WAV
-    if (output_file_name)
-    {
-        char *ext = strrchr(output_file_name, '.');
-        if (ext && !strcasecmp(ext + 1, "wav"))
-            wave_out = 1;
-    }
-#endif
     if (!input_file_name)
     {
         printf("error: no file names given\n");
         return 1;
     }
-    decode_file(fopen(input_file_name, "rb"), fopen(ref_file_name, "rb"), output_file_name ? fopen(output_file_name, "wb") : NULL, wave_out);
+    FILE *file_mp3 = fopen(input_file_name, "rb");
+    unsigned char *buf_mp3 = preload(file_mp3, &mp3_size);
+    fclose(file_mp3);
+    decode_file(buf_mp3, mp3_size, buf_ref, ref_size, file_out, wave_out);
+    if (buf_mp3)
+        free(buf_mp3);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     }
 #endif
+    if (buf_ref)
+        free(buf_ref);
+    if (file_out)
+        fclose(file_out);
     return 0;
 }
 
@@ -249,4 +262,5 @@ int main()
     }
     return 0;
 }
+#endif
 #endif
