@@ -152,7 +152,8 @@ int main(int argc, char *argv[])
     }
     FILE *file_mp3 = fopen(input_file_name, "rb");
     unsigned char *buf_mp3 = preload(file_mp3, &mp3_size);
-    fclose(file_mp3);
+    if (file_mp3)
+        fclose(file_mp3);
     if (!buf_mp3 || !mp3_size)
     {
         printf("error: no mp3 data\n");
