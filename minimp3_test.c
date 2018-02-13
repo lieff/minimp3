@@ -74,7 +74,7 @@ static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsign
                     int MSEtemp = abs((int)pcm[i] - (int)(((short*)buf_ref)[i]));
                     if (MSEtemp > maxdiff)
                         maxdiff = MSEtemp;
-                    MSE += MSEtemp*MSEtemp;
+                    MSE += (float)MSEtemp*(float)MSEtemp;
                 }
                 buf_ref  += samples*info.channels*2;
                 ref_size -= samples*info.channels*2;
@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
             wave_out = 1;
 #endif
     }
-    FILE *file_ref = fopen(ref_file_name, "rb");
+    FILE *file_ref = ref_file_name ? fopen(ref_file_name, "rb") : NULL;
     unsigned char *buf_ref = preload(file_ref, &ref_size);
     if (file_ref)
         fclose(file_ref);
@@ -153,6 +153,11 @@ int main(int argc, char *argv[])
     FILE *file_mp3 = fopen(input_file_name, "rb");
     unsigned char *buf_mp3 = preload(file_mp3, &mp3_size);
     fclose(file_mp3);
+    if (!buf_mp3 || !mp3_size)
+    {
+        printf("error: no mp3 data\n");
+        return 1;
+    }
     decode_file(buf_mp3, mp3_size, buf_ref, ref_size, file_out, wave_out);
     if (buf_mp3)
         free(buf_mp3);
