@@ -32,6 +32,11 @@ arm-none-eabi-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-a
 -ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
 qemu-arm ./minimp3_arm
 
+aarch64-linux-gnu-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
+-static -march=armv8-a \
+-ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c -lm
+qemu-aarch64 ./minimp3_arm
+
 if [ ! "$TRAVIS" = "true" ]; then
 rm emmintrin.h.gcov minimp3_arm minimp3_test.gcda minimp3_test.gcno minimp3_test.c.gcov xmmintrin.h.gcov
 fi
