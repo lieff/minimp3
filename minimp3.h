@@ -1389,10 +1389,8 @@ static void mp3d_DCT_II(float *grbuf, int n)
 
 static short mp3d_scale_pcm(float sample)
 {
-#ifdef FUZZ
     if (sample >  32767.0) return (short) 32767;
     if (sample < -32768.0) return (short)-32768;
-#endif
     int s = (int)(sample + .5f);
     s -= (s < 0);   /* away from zero, to be compliant */
     if (s >  32767) return (short) 32767;
@@ -1486,8 +1484,11 @@ static void mp3d_synth(float *xl, short *dstl, int nch, float *lins)
         V0(0) V2(1) V1(2) V2(3) V1(4) V2(5) V1(6) V2(7)
 
         {
+            static const f4 g_max = { 32767.0f, 32767.0f, 32767.0f, 32767.0f };
+            static const f4 g_min = { -32768.0f, -32768.0f, -32768.0f, -32768.0f };
 #if HAVE_SSE
-            __m128i pcm8 = _mm_packs_epi32(_mm_cvtps_epi32(a), _mm_cvtps_epi32(b));
+            __m128i pcm8 = _mm_packs_epi32(_mm_cvtps_epi32(_mm_max_ps(_mm_min_ps(a, g_max), g_min)),
+                                           _mm_cvtps_epi32(_mm_max_ps(_mm_min_ps(b, g_max), g_min)));
             dstr[(15 - i)*nch] = _mm_extract_epi16(pcm8, 1);
             dstr[(17 + i)*nch] = _mm_extract_epi16(pcm8, 5);
             dstl[(15 - i)*nch] = _mm_extract_epi16(pcm8, 0);
@@ -1500,6 +1501,8 @@ static void mp3d_synth(float *xl, short *dstl, int nch, float *lins)
             int16x4_t pcma, pcmb;
             a = VADD(a, VSET(0.5f));
             b = VADD(b, VSET(0.5f));
+            a = vmaxq_f32(vminq_f32(a, g_max), g_min);
+            b = vmaxq_f32(vminq_f32(b, g_max), g_min);
             pcma = vqmovn_s32(vaddq_s32(vcvtq_s32_f32(a), vreinterpretq_s32_u32(vcltq_f32(a, VSET(0)))));
             pcmb = vqmovn_s32(vaddq_s32(vcvtq_s32_f32(b), vreinterpretq_s32_u32(vcltq_f32(b, VSET(0)))));
             vst1_lane_s16(dstr + (15 - i)*nch, pcma, 1);
