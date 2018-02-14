@@ -155,7 +155,7 @@ test_nosimd:
     return 0;
 #endif
 }
-#elif defined(__ARM_NEON)
+#elif defined(__ARM_NEON) || defined(__aarch64__)
 #   include <arm_neon.h>
 #   define HAVE_SIMD 1
 #   define VSTORE vst1q_f32

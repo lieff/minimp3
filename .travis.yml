@@ -1,13 +1,22 @@
 language: c
+addons:
+  apt:
+    packages:
+      - libc6-dev-i386
+      - gcc-arm-none-eabi
+      - libnewlib-arm-none-eabi
+      - gcc-4.8-multilib
+      - gcc-4.8-aarch64-linux-gnu
+      - gcc-aarch64-linux-gnu
+      - libc6-arm64-cross
+      - libc6-dev-arm64-cross
+      - qemu
 
 os:
     - linux
 
 compiler:
     - gcc
-
-before_install:
-    - if [ $TRAVIS_OS_NAME == linux ]; then sudo apt-get install -y libc6-dev-i386 g++-multilib gcc-arm-none-eabi qemu; fi
 
 script:
     - scripts/build.sh
