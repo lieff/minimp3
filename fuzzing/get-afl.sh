@@ -9,8 +9,6 @@ make || exit
 cd llvm_mode
 # may need to prepend LLVM_CONFIG=/usr/bin/llvm-config-3.8 or similar, depending on the system
 make || exit
-cd ../libdislocator
-make || exit
 cd ../..
 rm -rf afl
 mv afl-* afl
