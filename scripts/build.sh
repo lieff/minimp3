@@ -49,12 +49,14 @@ powerpc-linux-gnu-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -f
 -ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_ppc minimp3_test.c -lm
 qemu-ppc ./minimp3_ppc
 
+if [ ! "$TRAVIS" = "true" ]; then
 echo testing powerpc64...
 powerpc64-linux-gnu-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
 -static \
 -ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_ppc minimp3_test.c -lm
 qemu-ppc64 ./minimp3_ppc
+fi
 
 if [ ! "$TRAVIS" = "true" ]; then
-rm emmintrin.h.gcov minimp3_arm minimp3_test.gcda minimp3_test.gcno minimp3_test.c.gcov xmmintrin.h.gcov
+rm emmintrin.h.gcov minimp3_arm minimp3_ppc minimp3_test.gcda minimp3_test.gcno minimp3_test.c.gcov xmmintrin.h.gcov
 fi
