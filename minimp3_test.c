@@ -19,14 +19,14 @@ static char *wav_header(int hz, int ch, int bips, int data_bytes)
     unsigned long nAvgBytesPerSec = bips*ch*hz >> 3;
     unsigned int nBlockAlign      = bips*ch >> 3;
 
-    *(int *  )(hdr + 0x04) = 44 + data_bytes - 8;   /* File size - 8 */
-    *(short *)(hdr + 0x14) = 1;                     /* Integer PCM format */
-    *(short *)(hdr + 0x16) = ch;
-    *(int *  )(hdr + 0x18) = hz;
-    *(int *  )(hdr + 0x1C) = nAvgBytesPerSec;
-    *(short *)(hdr + 0x20) = nBlockAlign;
-    *(short *)(hdr + 0x22) = bips;
-    *(int *  )(hdr + 0x28) = data_bytes;
+    *(int *  )(void*)(hdr + 0x04) = 44 + data_bytes - 8;   /* File size - 8 */
+    *(short *)(void*)(hdr + 0x14) = 1;                     /* Integer PCM format */
+    *(short *)(void*)(hdr + 0x16) = ch;
+    *(int *  )(void*)(hdr + 0x18) = hz;
+    *(int *  )(void*)(hdr + 0x1C) = nAvgBytesPerSec;
+    *(short *)(void*)(hdr + 0x20) = nBlockAlign;
+    *(short *)(void*)(hdr + 0x22) = bips;
+    *(int *  )(void*)(hdr + 0x28) = data_bytes;
     return hdr;
 }
 #endif
@@ -72,7 +72,7 @@ static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsign
                 total_samples += samples*info.channels;
                 for (i = 0; i < samples*info.channels; i++)
                 {
-                    int MSEtemp = abs((int)pcm[i] - (int)(((short*)buf_ref)[i]));
+                    int MSEtemp = abs((int)pcm[i] - (int)(((short*)(void*)buf_ref)[i]));
                     if (MSEtemp > maxdiff)
                         maxdiff = MSEtemp;
                     MSE += (float)MSEtemp*(float)MSEtemp;
