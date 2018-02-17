@@ -7,9 +7,17 @@ addons:
       - libnewlib-arm-none-eabi
       - gcc-4.8-multilib
       - gcc-4.8-aarch64-linux-gnu
+      - gcc-4.8-powerpc-linux-gnu
+      - gcc-4.8-powerpc64-linux-gnu
       - gcc-aarch64-linux-gnu
+      - gcc-powerpc-linux-gnu
+      - gcc-powerpc64-linux-gnu
       - libc6-arm64-cross
+      - libc6-powerpc-cross
+      - libc6-ppc64-cross
       - libc6-dev-arm64-cross
+      - libc6-dev-powerpc-cross
+      - libc6-dev-ppc64-cross
       - qemu
 
 os:

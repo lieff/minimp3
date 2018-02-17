@@ -123,7 +123,7 @@ int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 }
 #else
 
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__arm__) || defined(__aarch64__) || defined(__PPC__)
 int main2(int argc, char *argv[]);
 int main2(int argc, char *argv[])
 #else
@@ -179,7 +179,7 @@ int main(int argc, char *argv[])
     return 0;
 }
 
-#if defined(__arm__) || defined(__aarch64__)
+#if defined(__arm__) || defined(__aarch64__) || defined(__PPC__)
 static const char *g_files[] = {
     "vectors/ILL2_center2.bit",
     "vectors/ILL2_dual.bit",
