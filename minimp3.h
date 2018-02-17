@@ -1297,7 +1297,7 @@ static void mp3d_DCT_II(float *grbuf, int n)
         if (k > n - 3)
         {
 #if HAVE_SSE
-#define VSAVE2(i, v) _mm_storel_pi((__m64 *)&y[i*18], v)
+#define VSAVE2(i, v) _mm_storel_pi((__m64 *)(void*)&y[i*18], v)
 #else
 #define VSAVE2(i, v) vst1_f32((float32_t *)&y[i*18],  vget_low_f32(v))
 #endif
