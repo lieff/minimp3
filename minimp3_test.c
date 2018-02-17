@@ -51,11 +51,12 @@ static unsigned char *preload(FILE *file, int *data_size)
 static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out)
 {
     static mp3dec_t mp3d;
-    mp3dec_frame_info_t info = { 0, };
+    mp3dec_frame_info_t info;
     int i, data_bytes, samples, total_samples = 0, maxdiff = 0;
     double MSE = 0.0, psnr;
 
     mp3dec_init(&mp3d);
+    memset(&info, 0, sizeof(info));
 #ifndef MINIMP3_NO_WAV
     if (wave_out && file_out)
         fwrite(wav_header(0, 0, 0, 0), 1, 44, file_out);
@@ -156,7 +157,7 @@ int main(int argc, char *argv[])
         fclose(file_mp3);
     if (!buf_mp3 || !mp3_size)
     {
-        printf("error: no mp3 data\n");
+        printf("error: no input data\n");
         return 1;
     }
     decode_file(buf_mp3, mp3_size, buf_ref, ref_size, file_out, wave_out);
