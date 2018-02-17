@@ -12,6 +12,12 @@
     #include <strings.h>
 #endif
 
+static unsigned short read16le(const void *p)
+{
+    const unsigned char *src = (const unsigned char *)p;
+    return ((src[0]) << 0) | ((src[1]) << 8);
+}
+
 #ifndef MINIMP3_NO_WAV
 static char *wav_header(int hz, int ch, int bips, int data_bytes)
 {
@@ -72,7 +78,7 @@ static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsign
                 total_samples += samples*info.channels;
                 for (i = 0; i < samples*info.channels; i++)
                 {
-                    int MSEtemp = abs((int)pcm[i] - (int)(((short*)(void*)buf_ref)[i]));
+                    int MSEtemp = abs((int)pcm[i] - (int)(short)read16le(&buf_ref[i*sizeof(short)]));
                     if (MSEtemp > maxdiff)
                         maxdiff = MSEtemp;
                     MSE += (float)MSEtemp*(float)MSEtemp;
