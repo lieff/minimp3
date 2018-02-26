@@ -1,4 +1,5 @@
-#pragma once
+#ifndef MINIMP3_H
+#define MINIMP3_H
 /*
     https://github.com/lieff/minimp3
     To the extent possible under law, the author(s) have dedicated all copyright and related and neighboring rights to this software to the public domain worldwide.
@@ -1730,3 +1731,4 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, short 
     return success*hdr_frame_samples(dec->header);
 }
 #endif /*MINIMP3_IMPLEMENTATION*/
+#endif
