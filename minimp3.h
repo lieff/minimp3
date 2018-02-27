@@ -89,19 +89,22 @@ int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, 
 #endif
 
 #if defined(_MSC_VER) || ((defined(__i386__) || defined(__x86_64__)) && defined(__SSE2__))
-#   include <immintrin.h>
-#   define HAVE_SSE 1
-#   define HAVE_SIMD 1
-#   define VSTORE _mm_storeu_ps
-#   define VLD _mm_loadu_ps
-#   define VSET _mm_set1_ps
-#   define VADD _mm_add_ps
-#   define VSUB _mm_sub_ps
-#   define VMUL _mm_mul_ps
-#   define VMAC(a, x, y) _mm_add_ps(a, _mm_mul_ps(x, y))
-#   define VMSB(a, x, y) _mm_sub_ps(a, _mm_mul_ps(x, y))
-#   define VMUL_S(x, s)  _mm_mul_ps(x, _mm_set1_ps(s))
-#   define VREV(x) _mm_shuffle_ps(x, x, _MM_SHUFFLE(0, 1, 2, 3))
+#if defined(_MSC_VER)
+#include <intrin.h>
+#endif
+#include <immintrin.h>
+#define HAVE_SSE 1
+#define HAVE_SIMD 1
+#define VSTORE _mm_storeu_ps
+#define VLD _mm_loadu_ps
+#define VSET _mm_set1_ps
+#define VADD _mm_add_ps
+#define VSUB _mm_sub_ps
+#define VMUL _mm_mul_ps
+#define VMAC(a, x, y) _mm_add_ps(a, _mm_mul_ps(x, y))
+#define VMSB(a, x, y) _mm_sub_ps(a, _mm_mul_ps(x, y))
+#define VMUL_S(x, s)  _mm_mul_ps(x, _mm_set1_ps(s))
+#define VREV(x) _mm_shuffle_ps(x, x, _MM_SHUFFLE(0, 1, 2, 3))
 typedef __m128 f4;
 #if defined(_MSC_VER) || defined(MINIMP3_ONLY_SIMD)
 #define minimp3_cpuid __cpuid
@@ -159,26 +162,25 @@ test_nosimd:
 #endif
 }
 #elif defined(__ARM_NEON) || defined(__aarch64__)
-#   include <arm_neon.h>
-#   define HAVE_SIMD 1
-#   define VSTORE vst1q_f32
-#   define VLD vld1q_f32
-#   define VSET vmovq_n_f32
-#   define VADD vaddq_f32
-#   define VSUB vsubq_f32
-#   define VMUL vmulq_f32
-#   define VMAC(a, x, y) vmlaq_f32(a, x, y)
-#   define VMSB(a, x, y) vmlsq_f32(a, x, y)
-#   define VMUL_S(x, s)  vmulq_f32(x, vmovq_n_f32(s))
-/*#   define VREV(x) vcombine_f32(vrev64_f32(vget_high_f32(x)), vrev64_f32(vget_low_f32(x)))*/
-#   define VREV(x) vcombine_f32(vget_high_f32(vrev64q_f32(x)), vget_low_f32(vrev64q_f32(x)))
+#include <arm_neon.h>
+#define HAVE_SIMD 1
+#define VSTORE vst1q_f32
+#define VLD vld1q_f32
+#define VSET vmovq_n_f32
+#define VADD vaddq_f32
+#define VSUB vsubq_f32
+#define VMUL vmulq_f32
+#define VMAC(a, x, y) vmlaq_f32(a, x, y)
+#define VMSB(a, x, y) vmlsq_f32(a, x, y)
+#define VMUL_S(x, s)  vmulq_f32(x, vmovq_n_f32(s))
+#define VREV(x) vcombine_f32(vget_high_f32(vrev64q_f32(x)), vget_low_f32(vrev64q_f32(x)))
 typedef float32x4_t f4;
 static int have_simd()
 {   /* TODO: detect neon for !MINIMP3_ONLY_SIMD */
     return 1;
 }
 #else
-#   define HAVE_SIMD 0
+#define HAVE_SIMD 0
 #ifdef MINIMP3_ONLY_SIMD
 #error MINIMP3_ONLY_SIMD used, but SSE/NEON not enabled
 #endif
@@ -296,12 +298,12 @@ static unsigned hdr_bitrate_kbps(const uint8_t *h)
 static unsigned hdr_sample_rate_hz(const uint8_t *h)
 {
     static const unsigned g_hz[3] = { 44100, 48000, 32000 };
-    return g_hz[HDR_GET_SAMPLE_RATE(h)] >> !HDR_TEST_MPEG1(h) >> !HDR_TEST_NOT_MPEG25(h);
+    return g_hz[HDR_GET_SAMPLE_RATE(h)] >> (int)!HDR_TEST_MPEG1(h) >> (int)!HDR_TEST_NOT_MPEG25(h);
 }
 
 static unsigned hdr_frame_samples(const uint8_t *h)
 {
-    return HDR_IS_LAYER_1(h) ? 384 : (1152 >> HDR_IS_FRAME_576(h));
+    return HDR_IS_LAYER_1(h) ? 384 : (1152 >> (int)HDR_IS_FRAME_576(h));
 }
 
 static int hdr_frame_bytes(const uint8_t *h, int free_format_size)
@@ -340,7 +342,7 @@ static const L12_subband_alloc_t *L12_subband_alloc_table(const uint8_t *hdr, L1
     {
         static const L12_subband_alloc_t g_alloc_L2M1[] = { { 0, 4, 3 }, { 16, 4, 8 }, { 32, 3, 12 }, { 40, 2, 7 } };
         int sample_rate_idx = HDR_GET_SAMPLE_RATE(hdr);
-        unsigned kbps = hdr_bitrate_kbps(hdr) >> (mode != MODE_MONO);
+        unsigned kbps = hdr_bitrate_kbps(hdr) >> (int)(mode != MODE_MONO);
         if (!kbps) /* free-format */
         {
             kbps = 192;
@@ -1227,7 +1229,7 @@ static void L3_decode(mp3dec_t *h, mp3dec_scratch_t *s, L3_gr_info_t *gr_info, i
     for (ch = 0; ch < nch; ch++, gr_info++)
     {
         int aa_bands = 31;
-        int n_long_bands = (gr_info->mixed_block_flag ? 2 : 0) << (HDR_GET_MY_SAMPLE_RATE(h->header) == 2);
+        int n_long_bands = (gr_info->mixed_block_flag ? 2 : 0) << (int)(HDR_GET_MY_SAMPLE_RATE(h->header) == 2);
 
         if (gr_info->n_short_sfb)
         {
