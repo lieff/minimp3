@@ -38,6 +38,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, 
 #ifdef __cplusplus
 }
 #endif
+#endif /*MINIMP3_H*/
 
 #ifdef MINIMP3_IMPLEMENTATION
 
@@ -1733,4 +1734,3 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, short 
     return success*hdr_frame_samples(dec->header);
 }
 #endif /*MINIMP3_IMPLEMENTATION*/
-#endif
