@@ -1626,9 +1626,9 @@ static int mp3d_find_frame(const uint8_t *mp3, int mp3_bytes, int *free_format_b
                     *free_format_bytes = fb;
                 }
             }
-
-            if (frame_bytes && i + frame_and_padding <= mp3_bytes &&
-                mp3d_match_frame(mp3, mp3_bytes - i, frame_bytes))
+            if ((frame_bytes && i + frame_and_padding <= mp3_bytes &&
+                mp3d_match_frame(mp3, mp3_bytes - i, frame_bytes)) ||
+                (!i && frame_and_padding == mp3_bytes))
             {
                 *ptr_frame_bytes = frame_and_padding;
                 return i;
