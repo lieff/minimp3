@@ -70,7 +70,27 @@ static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsign
     do
     {
         short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+#ifdef MP4_MODE
+        int free_format_bytes = 0, frame_size = 0;
+        i = mp3d_find_frame(buf_mp3, mp3_size, &free_format_bytes, &frame_size);
+        buf_mp3  += i;
+        mp3_size -= i;
+        if (i && !frame_size)
+        {
+            printf("warning: skipping %d bytes, frame_size=%d\n", i, frame_size);
+            continue;
+        }
+        if (frame_size > mp3_size)
+        {
+            printf("error: demux mp3 frame failed: i=%d, frame_size=%d\n", i, frame_size);
+            exit(1);
+        }
+        if (!frame_size)
+            break;
+        samples = mp3dec_decode_frame(&mp3d, buf_mp3, frame_size, pcm, &info);
+#else
         samples = mp3dec_decode_frame(&mp3d, buf_mp3, mp3_size, pcm, &info);
+#endif
         if (samples)
         {
             if (buf_ref && ref_size >= samples*info.channels*2)
@@ -111,6 +131,13 @@ static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsign
         data_bytes = ftell(file_out) - 44;
         rewind(file_out);
         fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_out);
+    }
+#endif
+#ifdef MP4_MODE
+    if (!total_samples)
+    {
+        printf("error: mp4 test should decode some samples\n");
+        exit(1);
     }
 #endif
 }
