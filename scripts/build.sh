@@ -6,6 +6,10 @@ pushd $CUR_DIR/..
 
 set -e
 
+echo testing mp4 mode...
+gcc -O2 -std=c89 -DMP4_MODE -o minimp3 minimp3_test.c -lm
+scripts/test_mp4_mode.sh
+
 echo testing coverage x86 w sse...
 gcc -coverage -O0 -m32 -std=c89 -msse2 -DMINIMP3_TEST -DMINIMP3_NO_WAV -o minimp3 minimp3_test.c -lm
 scripts/test.sh
