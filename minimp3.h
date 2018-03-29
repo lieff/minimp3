@@ -812,20 +812,17 @@ static void L3_huffman(float *dst, bs_t *bs, const L3_gr_info_t *gr_info, const 
                 for (j = 0; j < 2; j++, dst++, leaf >>= 4)
                 {
                     int lsb = leaf & 0x0F;
-                    if (lsb)
+                    if (lsb == 15 && linbits)
                     {
-                        if (lsb == 15 && linbits)
-                        {
-                            lsb += PEEK_BITS(linbits);
-                            FLUSH_BITS(linbits);
-                            CHECK_BITS;
-                            *dst = one*L3_pow_43(lsb)*((int32_t)bs_cache < 0 ? -1: 1);
-                        } else
-                        {
-                            *dst = g_pow43_signed[lsb*2 + (bs_cache >> 31)]*one;
-                        }
-                        FLUSH_BITS(1);
+                        lsb += PEEK_BITS(linbits);
+                        FLUSH_BITS(linbits);
+                        CHECK_BITS;
+                        *dst = one*L3_pow_43(lsb)*((int32_t)bs_cache < 0 ? -1: 1);
+                    } else
+                    {
+                        *dst = g_pow43_signed[lsb*2 + (bs_cache >> 31)]*one;
                     }
+                    FLUSH_BITS(lsb ? 1 : 0);
                 }
                 CHECK_BITS;
             } while (--pairs_to_decode);
