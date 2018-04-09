@@ -93,9 +93,9 @@ static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsign
 #endif
         if (samples)
         {
+            total_samples += samples*info.channels;
             if (buf_ref && ref_size >= samples*info.channels*2)
             {
-                total_samples += samples*info.channels;
                 for (i = 0; i < samples*info.channels; i++)
                 {
                     int MSEtemp = abs((int)pcm[i] - (int)(short)read16le(&buf_ref[i*sizeof(short)]));
