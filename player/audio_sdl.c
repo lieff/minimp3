@@ -5,11 +5,8 @@
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-#include "decode.h"
+#include "audio_sdl.h"
 
-#ifndef MIN
-#define MIN(a,b) ((a) < (b) ? (a) : (b))
-#endif
 #define SDL2
 
 typedef struct audio_ctx
@@ -18,21 +15,13 @@ typedef struct audio_ctx
     int dev;
 #endif
     SDL_AudioSpec outputSpec;
+    decoder *dec;
 } audio_ctx;
-
-decoder _dec;
 
 static void audio_cb(void *udata, Uint8 *stream, int len)
 {
     audio_ctx *ctx = (audio_ctx *)udata;
-    memset(stream, 0, len);
-    EnterCriticalSection(&_dec.mp3_lock);
-    if ((_dec.mp3_size - _dec.mp3_pos) >= len)
-    {
-        memcpy(stream, (char*)_dec.mp3_buf + _dec.mp3_pos, len);
-        _dec.mp3_pos += len;
-    }
-    LeaveCriticalSection(&_dec.mp3_lock);
+    decode_samples(ctx->dec, stream, len);
 }
 
 int sdl_audio_init(void **audio_render, int samplerate, int channels, int format, int buffer)
@@ -68,11 +57,6 @@ int sdl_audio_init(void **audio_render, int samplerate, int channels, int format
         return 0;
     }
 #endif
-#ifdef SDL2
-    SDL_PauseAudioDevice(dev, 0);
-#else
-    SDL_PauseAudio(0);
-#endif
     *audio_render = ctx;
     return 1;
 }
@@ -91,4 +75,23 @@ void sdl_audio_release(void *audio_render)
     SDL_CloseAudio();
 #endif
     free(ctx);
+}
+
+void sdl_audio_set_dec(void *audio_render, decoder *dec)
+{
+    audio_ctx *ctx = (audio_ctx *)audio_render;
+#ifdef SDL2
+    SDL_PauseAudioDevice(ctx->dev, 1);
+#else
+    SDL_PauseAudio(1);
+#endif
+    ctx->dec = dec;
+    if (dec)
+    {
+#ifdef SDL2
+        SDL_PauseAudioDevice(ctx->dev, 0);
+#else
+        SDL_PauseAudio(0);
+#endif
+    }
 }

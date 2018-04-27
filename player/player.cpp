@@ -39,6 +39,7 @@ static GLFWwindow *_mainWindow;
 static std::map<std::string, int> _previews;
 static std::vector<std::string> _playlist;
 static void *_render;
+decoder _dec;
 
 static int load_image(const stbi_uc *data, int len)
 {
@@ -159,13 +160,16 @@ static void tick()
             if (nk_button_label(ctx, "Play") && _selected < (int)_playlist.size())
             {
                 _play_state = 1;
-                preload_mp3(&_dec, _playlist[_selected].c_str());
+                sdl_audio_set_dec(_render, 0);
+                open_dec(&_dec, _playlist[_selected].c_str());
+                sdl_audio_set_dec(_render, &_dec);
             }
         } else
         {
             if (nk_button_label(ctx, "Stop"))
             {
                 _play_state = 0;
+                sdl_audio_set_dec(_render, 0);
                 //stop();
             }
         }
@@ -199,7 +203,6 @@ static void tick()
 
 int main(int argc, char *argv[])
 {
-    InitializeCriticalSection(&_dec.mp3_lock);
     sdl_audio_init(&_render, 44100, 2, 0, 0);
     init();
     for (int i = 1; i < argc; i++)
