@@ -202,7 +202,7 @@ void huff_optimize_partition(huff_t *h)
     }
 }
 
-void huff_print_one(const huff_t *h, FILE *f, int parent_level)
+void huff_print_one(const huff_t *h, FILE *f, int parent_level, int last)
 {
     if (h->symbol_kind == E_PAIR)
     {
@@ -210,22 +210,21 @@ void huff_print_one(const huff_t *h, FILE *f, int parent_level)
         {
             int x = h->symbol << 16 >> 16;
             int y = h->symbol <<  0 >> 16;
-            fprintf(f, "%d,", ((h->level - parent_level)*256 + (x << 4) + (y << 0)));
+            fprintf(f, last ? "%d" : "%d,", ((h->level - parent_level)*256 + (x << 4) + (y << 0)));
         } else
         {
             assert(h->offset < (1 << 13));
             assert(h->offset);
-            fprintf(f, "%d,", (-h->offset << 3) | h->dp.best_width);
+            fprintf(f, last ? "%d" : "%d,", (-h->offset << 3) | h->dp.best_width);
         }
     } else
     {
         if (is_leaf(h))
         {
-            fprintf(f, "%d,", (h->symbol*16 + 8 + h->level));
+            fprintf(f, last ? "%d" : "%d,", (h->symbol*16 + 8 + h->level));
         } else
         {
-            fprintf(f, "%d,", (h->offset << 3) | h->dp.best_width);
-            //fprintf(f, "[%d,%d]", h->offset , h->dp.best_width);
+            fprintf(f, last ? "%d" : "%d,", (h->offset << 3) | h->dp.best_width);
         }
     }
 }
@@ -247,7 +246,7 @@ void huff_set_links_bfs(huff_t *h, FILE *f)
                 huff_t *r = (huff_t *)huff_decode(q, i, q->dp.best_width);
                 if (print_flag)
                 {
-                    huff_print_one(r, f, q->level);
+                    huff_print_one(r, f, q->level, 0);
                 }
 
                 if (!is_leaf(r))
@@ -278,13 +277,15 @@ void huff_set_links_dfs_recursion(huff_t *h, FILE *f, int print_flag, int *off)
     *off += w;
     for (i = 0; print_flag && i < w; i++)
     {
-        huff_print_one(huff_decode(h, i, h->dp.best_width), f, h->level);
+        huff_print_one(huff_decode(h, i, h->dp.best_width), f, h->level, (i + 1) == w);
     }
     for (i = 0; i < w; i++)
     {
         huff_t *q = (huff_t *)huff_decode(h, i, h->dp.best_width);
         if (!is_leaf(q))
         {
+            if (print_flag)
+                fprintf(f, ",");
             huff_set_links_dfs_recursion(q, f, print_flag, off);
         }
     }
@@ -318,7 +319,7 @@ int main()
         printf("%f average memory reads ", h ? h->dp.mips : 0);
         total_size += h ? h->dp.size : 0;
 
-        fprintf(dst_file, "static const %s tab%d[] = { ", tabn[i] < 32 ? "short" : "u8", tabn[i]);
+        fprintf(dst_file, "    static const %s tab%d[] = { ", tabn[i] < 32 ? "int16_t" : "uint8_t", tabn[i]);
         if (h)
         {
             //huff_set_links_bfs(h, dst_file);
@@ -336,7 +337,7 @@ int main()
     fprintf(dst_file, "#define HUFF_ENTRY_BITS %d\n", WROOT);
 #else
     fprintf(dst_file, "#define HUFF_ENTRY_BITS 0\n");
-    fprintf(dst_file, "static const u8 g_entry_bits[] = { ");
+    fprintf(dst_file, "    static const uint8_t g_entry_bits[] = { ");
     for (i = 0; i < sizeof(tabn)/sizeof(tabn[0]); i++)
     {
         fprintf(dst_file, "%d,", entry_bits[i]);
