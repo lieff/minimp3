@@ -43,11 +43,13 @@ static unsigned char *preload(FILE *file, int *data_size)
     *data_size = 0;
     if (!file)
         return 0;
-    fseek(file, 0, SEEK_END);
+    if (fseek(file, 0, SEEK_END))
+        return 0;
     *data_size = (int)ftell(file);
     if (*data_size < 0)
         return 0;
-    fseek(file, 0, SEEK_SET);
+    if (fseek(file, 0, SEEK_SET))
+        return 0;
     data = (unsigned char*)malloc(*data_size);
     if (!data)
         return 0;
