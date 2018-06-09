@@ -65,6 +65,18 @@ static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsign
     int i, data_bytes, samples, total_samples = 0, maxdiff = 0;
     double MSE = 0.0, psnr;
 
+    if (mp3_size > 10 && !strncmp((char *)buf_mp3, "ID3", 3))
+    {
+        int id3v2size = (((buf_mp3[6] & 0x7f) << 21) | ((buf_mp3[7] & 0x7f) << 14) |
+            ((buf_mp3[8] & 0x7f) << 7) | (buf_mp3[9] & 0x7f)) + 10;
+        if (mp3_size >= id3v2size)
+        {
+            printf("info: skipping %d bytes of id3v2\n", id3v2size);
+            buf_mp3  += id3v2size;
+            mp3_size -= id3v2size;
+        }
+    }
+
     mp3dec_init(&mp3d);
     memset(&info, 0, sizeof(info));
 #ifndef MINIMP3_NO_WAV
