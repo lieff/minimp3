@@ -11,21 +11,14 @@
 
 typedef struct
 {
-    int frame_bytes;
-    int channels;
-    int hz;
-    int layer;
-    int bitrate_kbps;
+    int frame_bytes, channels, hz, layer, bitrate_kbps;
 } mp3dec_frame_info_t;
 
 typedef struct
 {
-    float mdct_overlap[2][9*32];
-    float qmf_state[15*2*32];
-    int reserv;
-    int free_format_bytes;
-    unsigned char header[4];
-    unsigned char reserv_buf[511];
+    float mdct_overlap[2][9*32], qmf_state[15*2*32];
+    int reserv, free_format_bytes;
+    unsigned char header[4], reserv_buf[511];
 } mp3dec_t;
 
 #ifdef __cplusplus
@@ -193,44 +186,27 @@ static int have_simd()
 typedef struct
 {
     const uint8_t *buf;
-    int pos;
-    int limit;
+    int pos, limit;
 } bs_t;
 
 typedef struct
 {
-    uint8_t total_bands;
-    uint8_t stereo_bands;
-    uint8_t bitalloc[64];
-    uint8_t scfcod[64];
+    uint8_t total_bands, stereo_bands, bitalloc[64], scfcod[64];
     float scf[3*64];
 } L12_scale_info;
 
 typedef struct
 {
-    uint8_t tab_offset;
-    uint8_t code_tab_width;
-    uint8_t band_count;
+    uint8_t tab_offset, code_tab_width, band_count;
 } L12_subband_alloc_t;
 
 typedef struct
 {
     const uint8_t *sfbtab;
-    uint16_t part_23_length;
-    uint16_t big_values;
-    uint16_t scalefac_compress;
-    uint8_t global_gain;
-    uint8_t block_type;
-    uint8_t mixed_block_flag;
-    uint8_t n_long_sfb;
-    uint8_t n_short_sfb;
-    uint8_t table_select[3];
-    uint8_t region_count[3];
-    uint8_t subblock_gain[3];
-    uint8_t preflag;
-    uint8_t scalefac_scale;
-    uint8_t count1_table;
-    uint8_t scfsi;
+    uint16_t part_23_length, big_values, scalefac_compress;
+    uint8_t global_gain, block_type, mixed_block_flag, n_long_sfb, n_short_sfb;
+    uint8_t table_select[3], region_count[3], subblock_gain[3];
+    uint8_t preflag, scalefac_scale, count1_table, scfsi;
 } L3_gr_info_t;
 
 typedef struct
@@ -238,10 +214,8 @@ typedef struct
     bs_t bs;
     uint8_t maindata[MAX_BITRESERVOIR_BYTES + MAX_L3_FRAME_PAYLOAD_BYTES];
     L3_gr_info_t gr_info[4];
-    float grbuf[2][576];
-    float scf[40];
+    float grbuf[2][576], scf[40], syn[18 + 15][2*32];
     uint8_t ist_pos[2][39];
-    float syn[18 + 15][2*32];
 } mp3dec_scratch_t;
 
 static void bs_init(bs_t *bs, const uint8_t *data, int bytes)
