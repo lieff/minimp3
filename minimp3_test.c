@@ -210,8 +210,7 @@ int main(int argc, char *argv[])
         return 1;
     }
     decode_file(buf_mp3, mp3_size, buf_ref, ref_size, file_out, wave_out);
-    if (buf_mp3)
-        free(buf_mp3);
+    free(buf_mp3);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     }
 #endif
