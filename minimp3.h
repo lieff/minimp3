@@ -191,8 +191,8 @@ typedef struct
 
 typedef struct
 {
-    uint8_t total_bands, stereo_bands, bitalloc[64], scfcod[64];
     float scf[3*64];
+    uint8_t total_bands, stereo_bands, bitalloc[64], scfcod[64];
 } L12_scale_info;
 
 typedef struct
