@@ -1645,6 +1645,11 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, short 
     info->layer = 4 - HDR_GET_LAYER(hdr);
     info->bitrate_kbps = hdr_bitrate_kbps(hdr);
 
+    if (!pcm)
+    {
+        return hdr_frame_samples(hdr);
+    }
+
     bs_init(bs_frame, hdr + HDR_SIZE, frame_size - HDR_SIZE);
     if (HDR_IS_CRC(hdr))
     {
