@@ -31,7 +31,7 @@ scripts/test.sh
 
 echo testing arm w/o neon...
 arm-none-eabi-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
--mthumb -mcpu=cortex-m4 \
+-mthumb -mcpu=arm9e \
 -ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
 qemu-arm ./minimp3_arm
 

@@ -2,7 +2,7 @@
 /*#define MINIMP3_ONLY_SIMD*/
 /*#define MINIMP3_NONSTANDARD_BUT_LOGICAL*/
 #define MINIMP3_IMPLEMENTATION
-#include "minimp3.h"
+#include "minimp3_ex.h"
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
@@ -58,76 +58,81 @@ static unsigned char *preload(FILE *file, int *data_size)
     return data;
 }
 
-static void decode_file(const unsigned char *buf_mp3, int mp3_size, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out)
+#ifdef MP4_MODE
+typedef struct
 {
-    static mp3dec_t mp3d;
-    mp3dec_frame_info_t info;
-    int i, data_bytes, samples, total_samples = 0, maxdiff = 0;
+    mp3dec_t *mp3d;
+    mp3dec_file_info_t *info;
+    size_t allocated;
+} frames_iterate_data;
+
+static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_size, size_t offset, mp3dec_frame_info_t *info)
+{
+    (void)offset;
+    frames_iterate_data *d = user_data;
+    d->info->channels = info->channels;
+    d->info->hz       = info->hz;
+    d->info->layer    = info->layer;
+    /*printf("%d %d %d\n", frame_size, (int)offset, info->channels);*/
+    if ((d->allocated - d->info->samples*2) < MINIMP3_MAX_SAMPLES_PER_FRAME*2)
+    {
+        if (!d->allocated)
+            d->allocated = 1024*1024;
+        else
+            d->allocated *= 2;
+        d->info->buffer = realloc(d->info->buffer, d->allocated);
+    }
+    int samples = mp3dec_decode_frame(d->mp3d, frame, frame_size, d->info->buffer + d->info->samples, info);
+    if (samples)
+    {
+        d->info->samples += samples*info->channels;
+    }
+    return 0;
+}
+#endif
+
+static void decode_file(const char *input_file_name, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out)
+{
+    mp3dec_t mp3d;
+    int i, data_bytes, total_samples = 0, maxdiff = 0;
     double MSE = 0.0, psnr;
 
-    if (mp3_size > 10 && !strncmp((char *)buf_mp3, "ID3", 3))
-    {
-        int id3v2size = (((buf_mp3[6] & 0x7f) << 21) | ((buf_mp3[7] & 0x7f) << 14) |
-            ((buf_mp3[8] & 0x7f) << 7) | (buf_mp3[9] & 0x7f)) + 10;
-        if (mp3_size >= id3v2size)
-        {
-            printf("info: skipping %d bytes of id3v2\n", id3v2size);
-            buf_mp3  += id3v2size;
-            mp3_size -= id3v2size;
-        }
-    }
-
-    mp3dec_init(&mp3d);
+    mp3dec_file_info_t info;
     memset(&info, 0, sizeof(info));
+#ifdef MP4_MODE
+    frames_iterate_data d = { &mp3d, &info, 0 };
+    mp3dec_init(&mp3d);
+    if (mp3dec_iterate(input_file_name, frames_iterate_cb, &d))
+#else
+    if (mp3dec_load(&mp3d, input_file_name, &info))
+#endif
+    {
+        printf("error: file not found or read error");
+        exit(1);
+    }
 #ifndef MINIMP3_NO_WAV
     if (wave_out && file_out)
         fwrite(wav_header(0, 0, 0, 0), 1, 44, file_out);
 #endif
-    do
+    if (info.samples)
     {
-        short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
-#ifdef MP4_MODE
-        int free_format_bytes = 0, frame_size = 0;
-        i = mp3d_find_frame(buf_mp3, mp3_size, &free_format_bytes, &frame_size);
-        buf_mp3  += i;
-        mp3_size -= i;
-        if (i && !frame_size)
+        total_samples += info.samples;
+        if (buf_ref)
         {
-            printf("warning: skipping %d bytes, frame_size=%d\n", i, frame_size);
-            continue;
-        }
-        if (frame_size > mp3_size)
-        {
-            printf("error: demux mp3 frame failed: i=%d, frame_size=%d\n", i, frame_size);
-            exit(1);
-        }
-        if (!frame_size)
-            break;
-        samples = mp3dec_decode_frame(&mp3d, buf_mp3, frame_size, pcm, &info);
-#else
-        samples = mp3dec_decode_frame(&mp3d, buf_mp3, mp3_size, pcm, &info);
-#endif
-        if (samples)
-        {
-            total_samples += samples*info.channels;
-            if (buf_ref && ref_size >= samples*info.channels*2)
+            int max_samples = MINIMP3_MIN((size_t)ref_size/2, info.samples);
+            for (i = 0; i < max_samples; i++)
             {
-                for (i = 0; i < samples*info.channels; i++)
-                {
-                    int MSEtemp = abs((int)pcm[i] - (int)(short)read16le(&buf_ref[i*sizeof(short)]));
-                    if (MSEtemp > maxdiff)
-                        maxdiff = MSEtemp;
-                    MSE += (float)MSEtemp*(float)MSEtemp;
-                }
-                buf_ref  += samples*info.channels*2;
-                ref_size -= samples*info.channels*2;
+                int MSEtemp = abs((int)info.buffer[i] - (int)(short)read16le(&buf_ref[i*sizeof(short)]));
+                if (MSEtemp > maxdiff)
+                    maxdiff = MSEtemp;
+                MSE += (float)MSEtemp*(float)MSEtemp;
             }
-            if (file_out)
-                fwrite(pcm, samples, 2*info.channels, file_out);
         }
-        buf_mp3  += info.frame_bytes;
-        mp3_size -= info.frame_bytes;
-    } while (info.frame_bytes);
+        if (file_out)
+            fwrite(info.buffer, info.samples, sizeof(int16_t), file_out);
+        free(info.buffer);
+    }
+
 #ifndef LIBFUZZER
     MSE /= total_samples ? total_samples : 1;
     if (0 == MSE)
@@ -173,7 +178,7 @@ int main2(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
-    int wave_out = 0, ref_size, mp3_size;
+    int wave_out = 0, ref_size;
     char *ref_file_name    = (argc > 2) ? argv[2] : NULL;
     char *output_file_name = (argc > 3) ? argv[3] : NULL;
     FILE *file_out = NULL;
@@ -200,17 +205,7 @@ int main(int argc, char *argv[])
         printf("error: no file names given\n");
         return 1;
     }
-    FILE *file_mp3 = fopen(input_file_name, "rb");
-    unsigned char *buf_mp3 = preload(file_mp3, &mp3_size);
-    if (file_mp3)
-        fclose(file_mp3);
-    if (!buf_mp3 || !mp3_size)
-    {
-        printf("error: no input data\n");
-        return 1;
-    }
-    decode_file(buf_mp3, mp3_size, buf_ref, ref_size, file_out, wave_out);
-    free(buf_mp3);
+    decode_file(input_file_name, buf_ref, ref_size, file_out, wave_out);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     }
 #endif

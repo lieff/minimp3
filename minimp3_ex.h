@@ -11,7 +11,7 @@
 typedef struct
 {
     int16_t *buffer;
-    size_t samples;
+    size_t samples; /* channels included, byte size = samples*sizeof(int16_t) */
     int channels, hz, layer, avg_bitrate_kbps;
 } mp3dec_file_info_t;
 
@@ -220,10 +220,12 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     } while (frame_info.frame_bytes);
     if (!samples)
         return;
-    size_t samples_bytes = samples*frame_info.channels*2;
-    size_t allocated = (buf_size/frame_info.frame_bytes)*samples_bytes + MINIMP3_MAX_SAMPLES_PER_FRAME*2;
+    info->samples = samples*frame_info.channels;
+    size_t allocated = (buf_size/frame_info.frame_bytes)*info->samples*2 + MINIMP3_MAX_SAMPLES_PER_FRAME*2;
     info->buffer = malloc(allocated);
-    memcpy(info->buffer, pcm, samples_bytes);
+    memcpy(info->buffer, pcm, info->samples*2);
+    if (!info->buffer)
+        return;
     /* save info */
     info->channels = frame_info.channels;
     info->hz       = frame_info.hz;
@@ -233,24 +235,26 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     /* decode rest frames */
     do
     {
-        if ((allocated - samples_bytes) < MINIMP3_MAX_SAMPLES_PER_FRAME*2)
+        if ((allocated - info->samples*2) < MINIMP3_MAX_SAMPLES_PER_FRAME*2)
         {
             allocated *= 2;
             info->buffer = realloc(info->buffer, allocated);
         }
-        samples = mp3dec_decode_frame(dec, buf, buf_size, (int16_t*)((int8_t *)info->buffer + samples_bytes), &frame_info);
+        samples = mp3dec_decode_frame(dec, buf, buf_size, info->buffer + info->samples, &frame_info);
         if (samples)
         {
-            info->samples += samples;
+            if (info->hz != frame_info.hz || info->layer != frame_info.layer)
+                break;
+            info->samples += samples*frame_info.channels;
             avg_bitrate_kbps += frame_info.bitrate_kbps;
-            samples_bytes += samples*frame_info.channels*2;
+            frames++;
         }
         buf      += frame_info.frame_bytes;
         buf_size -= frame_info.frame_bytes;
     } while (frame_info.frame_bytes);
     /* reallocate to normal buffer size */
-    if (allocated != samples_bytes)
-        info->buffer = realloc(info->buffer, samples_bytes);
+    if (allocated != info->samples*2)
+        info->buffer = realloc(info->buffer, info->samples*2);
     info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
 }
 
@@ -262,6 +266,7 @@ void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB cal
     size_t id3v2size = mp3dec_skip_id3v2(buf, buf_size);
     if (id3v2size > buf_size)
         return;
+    const uint8_t *orig_buf = buf;
     buf      += id3v2size;
     buf_size -= id3v2size;
     do
@@ -274,7 +279,14 @@ void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB cal
             continue;
         if (!frame_size)
             break;
-        callback(user_data, buf + i, frame_size, i, &frame_info);
+        const uint8_t *hdr = buf;
+        frame_info.channels = HDR_IS_MONO(hdr) ? 1 : 2;
+        frame_info.hz = hdr_sample_rate_hz(hdr);
+        frame_info.layer = 4 - HDR_GET_LAYER(hdr);
+        frame_info.bitrate_kbps = hdr_bitrate_kbps(hdr);
+
+        if (callback(user_data, hdr, frame_size, hdr - orig_buf, &frame_info))
+            break;
         buf      += frame_size;
         buf_size -= frame_size;
     } while (1);
