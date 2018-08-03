@@ -2,6 +2,7 @@
 /*#define MINIMP3_ONLY_SIMD*/
 /*#define MINIMP3_NONSTANDARD_BUT_LOGICAL*/
 #define MINIMP3_IMPLEMENTATION
+#define MINIMP3_ALLOW_MONO_STEREO_TRANSITION
 #include "minimp3_ex.h"
 #include <stdio.h>
 #include <math.h>
@@ -104,7 +105,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     mp3dec_init(&mp3d);
     if (mp3dec_iterate(input_file_name, frames_iterate_cb, &d))
 #else
-    if (mp3dec_load(&mp3d, input_file_name, &info))
+    if (mp3dec_load(&mp3d, input_file_name, &info, 0, 0))
 #endif
     {
         printf("error: file not found or read error");

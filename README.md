@@ -163,19 +163,22 @@ typedef struct
 } mp3dec_file_info_t;
 
 typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, size_t offset, mp3dec_frame_info_t *info);
+typedef int (*MP3D_PROGRESS_CB)(void *user_data, size_t file_size, size_t offset, mp3dec_frame_info_t *info);
 
 /* decode whole buffer block */
-void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info);
+void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
 /* iterate through frames with optional decoding */
 void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data);
 #ifndef MINIMP3_NO_STDIO
 /* stdio versions with file pre-load */
+int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
 int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_data);
-int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info);
 #endif
 ```
 
 Use MINIMP3_NO_STDIO define to exclude STDIO functions.
+MINIMP3_ALLOW_MONO_STEREO_TRANSITION allows mixing mono and stereo in same file.
+In that case ``mp3dec_frame_info_t->channels = 0`` is reported on such files and correct channels number passed to progress_cb callback for each frame in mp3dec_frame_info_t structure.
 
 ## Bindings
 

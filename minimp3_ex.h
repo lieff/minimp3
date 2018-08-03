@@ -16,19 +16,20 @@ typedef struct
 } mp3dec_file_info_t;
 
 typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, size_t offset, mp3dec_frame_info_t *info);
+typedef int (*MP3D_PROGRESS_CB)(void *user_data, size_t file_size, size_t offset, mp3dec_frame_info_t *info);
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 /* decode whole buffer block */
-void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info);
+void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
 /* iterate through frames with optional decoding */
 void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data);
 #ifndef MINIMP3_NO_STDIO
 /* stdio versions with file pre-load */
+int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
 int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_data);
-int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info);
 #endif
 
 #ifdef __cplusplus
@@ -195,8 +196,9 @@ static size_t mp3dec_skip_id3v2(const uint8_t *buf, size_t buf_size)
     return 0;
 }
 
-void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info)
+void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
 {
+    size_t orig_buf_size = buf_size;
     short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
     mp3dec_frame_info_t frame_info;
     memset(info, 0, sizeof(*info));
@@ -245,9 +247,17 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
         {
             if (info->hz != frame_info.hz || info->layer != frame_info.layer)
                 break;
+            if (info->channels && info->channels != frame_info.channels)
+#ifdef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
+                info->channels = 0; /* mark file with mono-stereo transition */
+#else
+                break;
+#endif
             info->samples += samples*frame_info.channels;
             avg_bitrate_kbps += frame_info.bitrate_kbps;
             frames++;
+            if (progress_cb)
+                progress_cb(user_data, orig_buf_size, orig_buf_size - buf_size, &frame_info);
         }
         buf      += frame_info.frame_bytes;
         buf_size -= frame_info.frame_bytes;
@@ -293,13 +303,13 @@ void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB cal
 }
 
 #ifndef MINIMP3_NO_STDIO
-int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info)
+int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
 {
     int ret;
     mp3dec_map_info_t map_info;
     if ((ret = mp3dec_open_file(file_name, &map_info)))
         return ret;
-    mp3dec_load_buf(dec, map_info.buffer, map_info.size, info);
+    mp3dec_load_buf(dec, map_info.buffer, map_info.size, info, progress_cb, user_data);
     mp3dec_close_file(&map_info);
     return 0;
 }
