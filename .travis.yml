@@ -3,6 +3,7 @@ addons:
   apt:
     packages:
       - libc6-dev-i386
+      - linux-libc-dev:i386
       - gcc-arm-none-eabi
       - libnewlib-arm-none-eabi
       - gcc-4.8-multilib
