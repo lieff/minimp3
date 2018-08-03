@@ -149,6 +149,32 @@ lack ID3 tags, which allows us to decode the first frame and calculate all frame
 positions as ``frame_bytes * N``. However, because of padding, frames can differ
 in size even in this case.
 
+## High-level API
+
+If you need only decode file/buffer, you can use optional high-level API.
+Just ``#include`` ``minimp3_ex.h`` instead and use following additional functions:
+
+```
+typedef struct
+{
+    int16_t *buffer;
+    size_t samples; /* channels included, byte size = samples*sizeof(int16_t) */
+    int channels, hz, layer, avg_bitrate_kbps;
+} mp3dec_file_info_t;
+
+/* decode whole buffer block */
+void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info);
+/* iterate through frames with optional decoding */
+void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data);
+#ifndef MINIMP3_NO_STDIO
+/* stdio versions with file pre-load */
+int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_data);
+int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info);
+#endif
+```
+
+Use MINIMP3_NO_STDIO define to exclude STDIO functions.
+
 ## Bindings
 
  * https://github.com/tosone/minimp3 - go bindings
