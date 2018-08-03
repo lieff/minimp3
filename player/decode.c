@@ -30,7 +30,7 @@ static void get_spectrum(decoder *dec, int numch)
                 band_power += sample*sample;
             }
             // with averaging
-            //spectrum[band][ch] += (band_power/9 - spectrum[band][ch]) * 0.25;
+            //dec->spectrum[band][ch] += (band_power/9 - spectrum[band][ch]) * 0.25;
 
             // w/o averaging
             dec->spectrum[band][ch] = band_power/9;
@@ -43,7 +43,7 @@ static void get_spectrum(decoder *dec, int numch)
         {
             float power = dec->spectrum[band][ch];
             float db_offset = 100;      // to shift dB values from [0..-inf] to [max..0]
-            float db = 10*log10(power + 1e-15) + db_offset;
+            float db = 10*log10f(power + 1e-15) + db_offset;
             if (db < 0) db = 0;
             //printf("% .5f\t", db);
         }
@@ -53,19 +53,19 @@ static void get_spectrum(decoder *dec, int numch)
 
 void decode_samples(decoder *dec, uint8_t *buf, int bytes)
 {
-    int samples;
     if (dec->pcm_bytes - dec->pcm_copied)
     {
         int to_copy = MIN(dec->pcm_bytes - dec->pcm_copied, bytes);
         memcpy(buf, (uint8_t*)dec->pcm + dec->pcm_copied, to_copy);
         buf   += to_copy;
         bytes -= to_copy;
+        dec->pcm_copied += to_copy;
     }
     if (!bytes)
         return;
     do
     {
-        samples = mp3dec_decode_frame(&dec->mp3d, dec->mp3_buf + dec->pos, dec->mp3_size - dec->pos, dec->pcm, &dec->info);
+        int samples = mp3dec_decode_frame(&dec->mp3d, dec->mp3_buf + dec->pos, dec->mp3_size - dec->pos, dec->pcm, &dec->info);
         dec->pos += dec->info.frame_bytes;
         if (samples)
         {
