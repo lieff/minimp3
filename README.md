@@ -162,6 +162,8 @@ typedef struct
     int channels, hz, layer, avg_bitrate_kbps;
 } mp3dec_file_info_t;
 
+typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, size_t offset, mp3dec_frame_info_t *info);
+
 /* decode whole buffer block */
 void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info);
 /* iterate through frames with optional decoding */
