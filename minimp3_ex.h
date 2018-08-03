@@ -39,6 +39,124 @@ int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_d
 
 #ifdef MINIMP3_IMPLEMENTATION
 
+static size_t mp3dec_skip_id3v2(const uint8_t *buf, size_t buf_size)
+{
+    if (buf_size > 10 && !strncmp((char *)buf, "ID3", 3))
+    {
+        return (((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) |
+            ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f)) + 10;
+    }
+    return 0;
+}
+
+void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
+{
+    size_t orig_buf_size = buf_size;
+    short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    mp3dec_frame_info_t frame_info;
+    memset(info, 0, sizeof(*info));
+    memset(&frame_info, 0, sizeof(frame_info));
+    /* skip id3v2 */
+    size_t id3v2size = mp3dec_skip_id3v2(buf, buf_size);
+    if (id3v2size > buf_size)
+        return;
+    buf      += id3v2size;
+    buf_size -= id3v2size;
+    /* try to make allocation size assumption by first frame */
+    mp3dec_init(dec);
+    int samples;
+    do
+    {
+        samples = mp3dec_decode_frame(dec, buf, buf_size, pcm, &frame_info);
+        buf      += frame_info.frame_bytes;
+        buf_size -= frame_info.frame_bytes;
+        if (samples)
+            break;
+    } while (frame_info.frame_bytes);
+    if (!samples)
+        return;
+    info->samples = samples*frame_info.channels;
+    size_t allocated = (buf_size/frame_info.frame_bytes)*info->samples*2 + MINIMP3_MAX_SAMPLES_PER_FRAME*2;
+    info->buffer = malloc(allocated);
+    memcpy(info->buffer, pcm, info->samples*2);
+    if (!info->buffer)
+        return;
+    /* save info */
+    info->channels = frame_info.channels;
+    info->hz       = frame_info.hz;
+    info->layer    = frame_info.layer;
+    size_t avg_bitrate_kbps = frame_info.bitrate_kbps;
+    size_t frames = 1;
+    /* decode rest frames */
+    do
+    {
+        if ((allocated - info->samples*2) < MINIMP3_MAX_SAMPLES_PER_FRAME*2)
+        {
+            allocated *= 2;
+            info->buffer = realloc(info->buffer, allocated);
+        }
+        samples = mp3dec_decode_frame(dec, buf, buf_size, info->buffer + info->samples, &frame_info);
+        if (samples)
+        {
+            if (info->hz != frame_info.hz || info->layer != frame_info.layer)
+                break;
+            if (info->channels && info->channels != frame_info.channels)
+#ifdef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
+                info->channels = 0; /* mark file with mono-stereo transition */
+#else
+                break;
+#endif
+            info->samples += samples*frame_info.channels;
+            avg_bitrate_kbps += frame_info.bitrate_kbps;
+            frames++;
+            if (progress_cb)
+                progress_cb(user_data, orig_buf_size, orig_buf_size - buf_size, &frame_info);
+        }
+        buf      += frame_info.frame_bytes;
+        buf_size -= frame_info.frame_bytes;
+    } while (frame_info.frame_bytes);
+    /* reallocate to normal buffer size */
+    if (allocated != info->samples*2)
+        info->buffer = realloc(info->buffer, info->samples*2);
+    info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
+}
+
+void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data)
+{
+    mp3dec_frame_info_t frame_info;
+    memset(&frame_info, 0, sizeof(frame_info));
+    /* skip id3v2 */
+    size_t id3v2size = mp3dec_skip_id3v2(buf, buf_size);
+    if (id3v2size > buf_size)
+        return;
+    const uint8_t *orig_buf = buf;
+    buf      += id3v2size;
+    buf_size -= id3v2size;
+    do
+    {
+        int free_format_bytes = 0, frame_size = 0;
+        int i = mp3d_find_frame(buf, buf_size, &free_format_bytes, &frame_size);
+        buf      += i;
+        buf_size -= i;
+        if (i && !frame_size)
+            continue;
+        if (!frame_size)
+            break;
+        const uint8_t *hdr = buf;
+        frame_info.channels = HDR_IS_MONO(hdr) ? 1 : 2;
+        frame_info.hz = hdr_sample_rate_hz(hdr);
+        frame_info.layer = 4 - HDR_GET_LAYER(hdr);
+        frame_info.bitrate_kbps = hdr_bitrate_kbps(hdr);
+
+        if (callback(user_data, hdr, frame_size, hdr - orig_buf, &frame_info))
+            break;
+        buf      += frame_size;
+        buf_size -= frame_size;
+    } while (1);
+}
+
+#ifndef MINIMP3_NO_STDIO
+
 #if defined(__linux__) || defined(__FreeBSD__)
 #include <errno.h>
 #include <sys/mman.h>
@@ -186,123 +304,6 @@ error:
 }
 #endif
 
-static size_t mp3dec_skip_id3v2(const uint8_t *buf, size_t buf_size)
-{
-    if (buf_size > 10 && !strncmp((char *)buf, "ID3", 3))
-    {
-        return (((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) |
-            ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f)) + 10;
-    }
-    return 0;
-}
-
-void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
-{
-    size_t orig_buf_size = buf_size;
-    short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
-    mp3dec_frame_info_t frame_info;
-    memset(info, 0, sizeof(*info));
-    memset(&frame_info, 0, sizeof(frame_info));
-    /* skip id3v2 */
-    size_t id3v2size = mp3dec_skip_id3v2(buf, buf_size);
-    if (id3v2size > buf_size)
-        return;
-    buf      += id3v2size;
-    buf_size -= id3v2size;
-    /* try to make allocation size assumption by first frame */
-    mp3dec_init(dec);
-    int samples;
-    do
-    {
-        samples = mp3dec_decode_frame(dec, buf, buf_size, pcm, &frame_info);
-        buf      += frame_info.frame_bytes;
-        buf_size -= frame_info.frame_bytes;
-        if (samples)
-            break;
-    } while (frame_info.frame_bytes);
-    if (!samples)
-        return;
-    info->samples = samples*frame_info.channels;
-    size_t allocated = (buf_size/frame_info.frame_bytes)*info->samples*2 + MINIMP3_MAX_SAMPLES_PER_FRAME*2;
-    info->buffer = malloc(allocated);
-    memcpy(info->buffer, pcm, info->samples*2);
-    if (!info->buffer)
-        return;
-    /* save info */
-    info->channels = frame_info.channels;
-    info->hz       = frame_info.hz;
-    info->layer    = frame_info.layer;
-    size_t avg_bitrate_kbps = frame_info.bitrate_kbps;
-    size_t frames = 1;
-    /* decode rest frames */
-    do
-    {
-        if ((allocated - info->samples*2) < MINIMP3_MAX_SAMPLES_PER_FRAME*2)
-        {
-            allocated *= 2;
-            info->buffer = realloc(info->buffer, allocated);
-        }
-        samples = mp3dec_decode_frame(dec, buf, buf_size, info->buffer + info->samples, &frame_info);
-        if (samples)
-        {
-            if (info->hz != frame_info.hz || info->layer != frame_info.layer)
-                break;
-            if (info->channels && info->channels != frame_info.channels)
-#ifdef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
-                info->channels = 0; /* mark file with mono-stereo transition */
-#else
-                break;
-#endif
-            info->samples += samples*frame_info.channels;
-            avg_bitrate_kbps += frame_info.bitrate_kbps;
-            frames++;
-            if (progress_cb)
-                progress_cb(user_data, orig_buf_size, orig_buf_size - buf_size, &frame_info);
-        }
-        buf      += frame_info.frame_bytes;
-        buf_size -= frame_info.frame_bytes;
-    } while (frame_info.frame_bytes);
-    /* reallocate to normal buffer size */
-    if (allocated != info->samples*2)
-        info->buffer = realloc(info->buffer, info->samples*2);
-    info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
-}
-
-void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data)
-{
-    mp3dec_frame_info_t frame_info;
-    memset(&frame_info, 0, sizeof(frame_info));
-    /* skip id3v2 */
-    size_t id3v2size = mp3dec_skip_id3v2(buf, buf_size);
-    if (id3v2size > buf_size)
-        return;
-    const uint8_t *orig_buf = buf;
-    buf      += id3v2size;
-    buf_size -= id3v2size;
-    do
-    {
-        int free_format_bytes = 0, frame_size = 0;
-        int i = mp3d_find_frame(buf, buf_size, &free_format_bytes, &frame_size);
-        buf      += i;
-        buf_size -= i;
-        if (i && !frame_size)
-            continue;
-        if (!frame_size)
-            break;
-        const uint8_t *hdr = buf;
-        frame_info.channels = HDR_IS_MONO(hdr) ? 1 : 2;
-        frame_info.hz = hdr_sample_rate_hz(hdr);
-        frame_info.layer = 4 - HDR_GET_LAYER(hdr);
-        frame_info.bitrate_kbps = hdr_bitrate_kbps(hdr);
-
-        if (callback(user_data, hdr, frame_size, hdr - orig_buf, &frame_info))
-            break;
-        buf      += frame_size;
-        buf_size -= frame_size;
-    } while (1);
-}
-
-#ifndef MINIMP3_NO_STDIO
 int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
 {
     int ret;
