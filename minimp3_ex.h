@@ -75,12 +75,13 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     } while (frame_info.frame_bytes);
     if (!samples)
         return;
-    info->samples = samples*frame_info.channels;
-    size_t allocated = (buf_size/frame_info.frame_bytes)*info->samples*2 + MINIMP3_MAX_SAMPLES_PER_FRAME*2;
+    samples *= frame_info.channels;
+    size_t allocated = (buf_size/frame_info.frame_bytes)*samples*2 + MINIMP3_MAX_SAMPLES_PER_FRAME*2;
     info->buffer = malloc(allocated);
-    memcpy(info->buffer, pcm, info->samples*2);
     if (!info->buffer)
         return;
+    info->samples = samples;
+    memcpy(info->buffer, pcm, info->samples*2);
     /* save info */
     info->channels = frame_info.channels;
     info->hz       = frame_info.hz;
