@@ -99,10 +99,10 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     double MSE = 0.0, psnr;
 
     mp3dec_file_info_t info;
-    memset(&info, 0, sizeof(info));
 #ifdef MP4_MODE
     frames_iterate_data d = { &mp3d, &info, 0 };
     mp3dec_init(&mp3d);
+    memset(&info, 0, sizeof(info));
     if (mp3dec_iterate(input_file_name, frames_iterate_cb, &d))
 #else
     if (mp3dec_load(&mp3d, input_file_name, &info, 0, 0))
