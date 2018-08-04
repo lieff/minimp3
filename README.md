@@ -179,6 +179,16 @@ int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_d
 Use MINIMP3_NO_STDIO define to exclude STDIO functions.
 MINIMP3_ALLOW_MONO_STEREO_TRANSITION allows mixing mono and stereo in same file.
 In that case ``mp3dec_frame_info_t->channels = 0`` is reported on such files and correct channels number passed to progress_cb callback for each frame in mp3dec_frame_info_t structure.
+MP3D_PROGRESS_CB is optional and can be NULL, example of file decoding:
+
+```
+    mp3dec_file_info_t info;
+    if (mp3dec_load(&mp3d, input_file_name, &info, NULL, NULL))
+    {
+        /* error */
+    }
+    /* mp3dec_file_info_t contains decoded samples and info */
+```
 
 ## Bindings
 
