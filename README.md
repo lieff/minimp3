@@ -188,7 +188,7 @@ MP3D_PROGRESS_CB is optional and can be NULL, example of file decoding:
     {
         /* error */
     }
-    /* mp3dec_file_info_t contains decoded samples and info */
+    /* mp3dec_file_info_t contains decoded samples and info, use free(info.buffer) to deallocate samples */
 ```
 
 ## Bindings
