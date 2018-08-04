@@ -123,6 +123,8 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
 
 void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data)
 {
+    if (!callback)
+        return;
     mp3dec_frame_info_t frame_info;
     memset(&frame_info, 0, sizeof(frame_info));
     /* skip id3v2 */
