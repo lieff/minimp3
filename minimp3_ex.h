@@ -8,12 +8,32 @@
 */
 #include "minimp3.h"
 
+#define MP3D_SEEK_TO_BYTE   0
+#define MP3D_SEEK_TO_SAMPLE 1
+#define MP3D_SEEK_TO_SAMPLE_INDEXED 2
+
 typedef struct
 {
     int16_t *buffer;
     size_t samples; /* channels included, byte size = samples*sizeof(int16_t) */
     int channels, hz, layer, avg_bitrate_kbps;
 } mp3dec_file_info_t;
+
+typedef struct
+{
+    const uint8_t *buffer;
+    size_t size;
+} mp3dec_map_info_t;
+
+typedef struct
+{
+    mp3dec_t mp3d;
+    mp3dec_map_info_t file;
+    int seek_method;
+#ifndef MINIMP3_NO_STDIO
+    int is_file;
+#endif
+} mp3dec_ex_t;
 
 typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, size_t offset, mp3dec_frame_info_t *info);
 typedef int (*MP3D_PROGRESS_CB)(void *user_data, size_t file_size, size_t offset, mp3dec_frame_info_t *info);
@@ -26,10 +46,16 @@ extern "C" {
 void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
 /* iterate through frames with optional decoding */
 void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data);
+/* decoder with seeking capability */
+int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, int seek_method);
+void mp3dec_ex_close(mp3dec_ex_t *dec);
+void mp3dec_ex_seek(mp3dec_ex_t *dec, size_t position);
+int mp3dec_ex_read(mp3dec_ex_t *dec, int16_t *buf, int samples);
 #ifndef MINIMP3_NO_STDIO
 /* stdio versions with file pre-load */
 int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
 int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_data);
+int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int seek_method);
 #endif
 
 #ifdef __cplusplus
@@ -161,6 +187,25 @@ void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB cal
     } while (1);
 }
 
+int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, int seek_method)
+{
+    memset(dec, 0, sizeof(*dec));
+    dec->file.buffer = buf;
+    dec->file.size   = buf_size;
+    dec->seek_method = seek_method;
+    mp3dec_init(&dec->mp3d);
+    return 0;
+}
+
+/*void mp3dec_ex_seek(mp3dec_ex_t *dec, size_t position)
+{
+}
+
+int mp3dec_ex_read(mp3dec_ex_t *dec, int16_t *buf, int samples)
+{
+    return 0;
+}*/
+
 #ifndef MINIMP3_NO_STDIO
 
 #if defined(__linux__) || defined(__FreeBSD__)
@@ -176,82 +221,64 @@ void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB cal
 #define MAP_POPULATE 0
 #endif
 
-typedef struct
-{
-    uint8_t *buffer;
-    size_t size;
-    int file;
-} mp3dec_map_info_t;
-
 static void mp3dec_close_file(mp3dec_map_info_t *map_info)
 {
     if (map_info->buffer && MAP_FAILED != map_info->buffer)
-        munmap(map_info->buffer, map_info->size);
-    if (map_info->file)
-        close(map_info->file);
+        munmap((void *)map_info->buffer, map_info->size);
     map_info->buffer = 0;
-    map_info->file = 0;
+    map_info->size   = 0;
 }
 
 static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
 {
+    int file;
     struct stat st;
     memset(map_info, 0, sizeof(*map_info));
 retry_open:
-    map_info->file = open(file_name, O_RDONLY);
-    if (map_info->file < 0 && (errno == EAGAIN || errno == EINTR))
+    file = open(file_name, O_RDONLY);
+    if (file < 0 && (errno == EAGAIN || errno == EINTR))
         goto retry_open;
-    if (map_info->file < 0 || fstat(map_info->file, &st) < 0)
+    if (file < 0 || fstat(file, &st) < 0)
     {
-        mp3dec_close_file(map_info);
+        close(file);
         return -1;
     }
 
     map_info->size = st.st_size;
 retry_mmap:
-    map_info->buffer = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, map_info->file, 0);
+    map_info->buffer = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, file, 0);
     if (MAP_FAILED == map_info->buffer && (errno == EAGAIN || errno == EINTR))
         goto retry_mmap;
+    close(file);
     if (MAP_FAILED == map_info->buffer)
-    {
-        mp3dec_close_file(map_info);
         return -1;
-    }
     return 0;
 }
 #elif defined(_WIN32)
 #include <windows.h>
-typedef struct
-{
-    uint8_t *buffer;
-    size_t size;
-    HANDLE file;
-} mp3dec_map_info_t;
 
 static void mp3dec_close_file(mp3dec_map_info_t *map_info)
 {
     if (map_info->buffer)
         UnmapViewOfFile(map_info->buffer);
-    if (INVALID_HANDLE_VALUE != map_info->file)
-        CloseHandle(map_info->file);
     map_info->buffer = 0;
-    map_info->file = 0;
+    map_info->size = 0;
 }
 
 static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
 {
     memset(map_info, 0, sizeof(*map_info));
 
-    map_info->file = CreateFileA(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
-    if (INVALID_HANDLE_VALUE == map_info->file)
-        goto error;
+    HANDLE file = CreateFileA(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    if (INVALID_HANDLE_VALUE == file)
+        return -1;
     LARGE_INTEGER s;
-    s.LowPart = GetFileSize(map_info->file, (DWORD*)&s.HighPart);
+    s.LowPart = GetFileSize(file, (DWORD*)&s.HighPart);
     if (s.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
         goto error;
     map_info->size = s.QuadPart;
 
-    HANDLE mapping = CreateFileMapping(map_info->file, NULL, PAGE_READONLY, 0, 0, NULL);
+    HANDLE mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
     if (!mapping)
         goto error;
     map_info->buffer = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, s.QuadPart);
@@ -259,53 +286,49 @@ static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
     if (!map_info->buffer)
         goto error;
 
+    CloseHandle(file);
     return 0;
 error:
     mp3dec_close_file(map_info);
+    CloseHandle(file);
     return -1;
 }
 #else
 #include <stdio.h>
-typedef struct
-{
-    uint8_t *buffer;
-    FILE *file;
-    size_t size;
-} mp3dec_map_info_t;
 
 static void mp3dec_close_file(mp3dec_map_info_t *map_info)
 {
     if (map_info->buffer)
-        free(map_info->buffer);
-    if (map_info->file)
-        fclose(map_info->file);
+        free((void *)map_info->buffer);
     map_info->buffer = 0;
-    map_info->file = 0;
+    map_info->size = 0;
 }
 
 static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
 {
     memset(map_info, 0, sizeof(*map_info));
-    map_info->file = fopen(file_name, "rb");
-    if (!map_info->file)
+    FILE *file = fopen(file_name, "rb");
+    if (!file)
         return -1;
 
-    if (fseek(map_info->file, 0, SEEK_END))
+    if (fseek(file, 0, SEEK_END))
         goto error;
-    long size = ftell(map_info->file);
+    long size = ftell(file);
     if (size < 0)
         goto error;
     map_info->size = (size_t)size;
-    if (fseek(map_info->file, 0, SEEK_SET))
+    if (fseek(file, 0, SEEK_SET))
         goto error;
     map_info->buffer = (uint8_t *)malloc(map_info->size);
     if (!map_info->buffer)
         goto error;
-    if (fread(map_info->buffer, 1, map_info->size, map_info->file) != map_info->size)
+    if (fread((void *)map_info->buffer, 1, map_info->size, file) != map_info->size)
         goto error;
+    fclose(file);
     return 0;
 error:
     mp3dec_close_file(map_info);
+    fclose(file);
     return -1;
 }
 #endif
@@ -330,6 +353,33 @@ int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_d
     mp3dec_iterate_buf(map_info.buffer, map_info.size, callback, user_data);
     mp3dec_close_file(&map_info);
     return 0;
+}
+
+void mp3dec_ex_close(mp3dec_ex_t *dec)
+{
+    if (dec->is_file)
+        mp3dec_close_file(&dec->file);
+    else
+        free((void *)dec->file.buffer);
+    memset(dec, 0, sizeof(*dec));
+}
+
+int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int seek_method)
+{
+    int ret;
+    memset(dec, 0, sizeof(*dec));
+    if ((ret = mp3dec_open_file(file_name, &dec->file)))
+        return ret;
+    dec->seek_method = seek_method;
+    dec->is_file = 1;
+    mp3dec_init(&dec->mp3d);
+    return 0;
+}
+#else
+void mp3dec_ex_close(mp3dec_ex_t *dec)
+{
+    free(dec->file.buffer);
+    memset(dec, 0, sizeof(*dec));
 }
 #endif
 
