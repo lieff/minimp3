@@ -182,6 +182,7 @@ In that case ``mp3dec_frame_info_t->channels = 0`` is reported on such files and
 MP3D_PROGRESS_CB is optional and can be NULL, example of file decoding:
 
 ```
+    mp3dec_t mp3d;
     mp3dec_file_info_t info;
     if (mp3dec_load(&mp3d, input_file_name, &info, NULL, NULL))
     {
