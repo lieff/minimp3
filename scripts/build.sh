@@ -6,8 +6,11 @@ pushd $CUR_DIR/..
 
 set -e
 
+CFLAGS="-O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
+-ffunction-sections -fdata-sections -Wl,--gc-sections"
+
 echo testing mp4 mode...
-gcc -O2 -std=c89 -DMP4_MODE -o minimp3 minimp3_test.c -lm
+gcc $CFLAGS -DMP4_MODE -o minimp3 minimp3_test.c -lm
 scripts/test_mp4_mode.sh
 
 echo testing coverage x86 w sse...
@@ -20,44 +23,36 @@ set -e
 gcov minimp3_test.c
 
 echo testing x86 w/o sse...
-gcc -O2 -m32 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
--ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3 minimp3_test.c -lm
+gcc $CFLAGS -m32 -o minimp3 minimp3_test.c -lm
 scripts/test.sh
 
 echo testing x64...
-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
--ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3 minimp3_test.c -lm
+gcc $CFLAGS -o minimp3 minimp3_test.c -lm
+scripts/test.sh
+
+echo testing x64 with float output...
+gcc $CFLAGS -DMINIMP3_FLOAT_OUTPUT -o minimp3 minimp3_test.c -lm
 scripts/test.sh
 
 echo testing arm w/o neon...
-arm-none-eabi-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
--mthumb -mcpu=arm9e \
--ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
+arm-none-eabi-gcc $CFLAGS -mthumb -mcpu=arm9e -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
 qemu-arm ./minimp3_arm
 
 echo testing arm w neon...
-arm-none-eabi-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
--marm -mcpu=cortex-a15 -mfpu=neon -mfloat-abi=softfp \
--ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
+arm-none-eabi-gcc $CFLAGS -marm -mcpu=cortex-a15 -mfpu=neon -mfloat-abi=softfp -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm
 qemu-arm ./minimp3_arm
 
 echo testing arm64...
-aarch64-linux-gnu-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
--static -march=armv8-a \
--ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_arm minimp3_test.c -lm
+aarch64-linux-gnu-gcc $CFLAGS -static -march=armv8-a -o minimp3_arm minimp3_test.c -lm
 qemu-aarch64 ./minimp3_arm
 
 echo testing powerpc...
-powerpc-linux-gnu-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
--static \
--ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_ppc minimp3_test.c -lm
+powerpc-linux-gnu-gcc $CFLAGS -static -o minimp3_ppc minimp3_test.c -lm
 qemu-ppc ./minimp3_ppc
 
 if [ ! "$TRAVIS" = "true" ]; then
 echo testing powerpc64...
-powerpc64-linux-gnu-gcc -O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
--static \
--ffunction-sections -fdata-sections -Wl,--gc-sections -o minimp3_ppc minimp3_test.c -lm
+powerpc64-linux-gnu-gcc $CFLAGS -static -o minimp3_ppc minimp3_test.c -lm
 qemu-ppc64 ./minimp3_ppc
 fi
 
