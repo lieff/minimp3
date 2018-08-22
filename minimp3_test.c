@@ -13,9 +13,9 @@
     #include <strings.h>
 #endif
 
-static unsigned short read16le(const void *p)
+static int16_t read16le(const void *p)
 {
-    const unsigned char *src = (const unsigned char *)p;
+    const uint8_t *src = (const uint8_t *)p;
     return ((src[0]) << 0) | ((src[1]) << 8);
 }
 
@@ -26,14 +26,14 @@ static char *wav_header(int hz, int ch, int bips, int data_bytes)
     unsigned long nAvgBytesPerSec = bips*ch*hz >> 3;
     unsigned int nBlockAlign      = bips*ch >> 3;
 
-    *(int *  )(void*)(hdr + 0x04) = 44 + data_bytes - 8;   /* File size - 8 */
-    *(short *)(void*)(hdr + 0x14) = 1;                     /* Integer PCM format */
-    *(short *)(void*)(hdr + 0x16) = ch;
-    *(int *  )(void*)(hdr + 0x18) = hz;
-    *(int *  )(void*)(hdr + 0x1C) = nAvgBytesPerSec;
-    *(short *)(void*)(hdr + 0x20) = nBlockAlign;
-    *(short *)(void*)(hdr + 0x22) = bips;
-    *(int *  )(void*)(hdr + 0x28) = data_bytes;
+    *(int32_t *)(void*)(hdr + 0x04) = 44 + data_bytes - 8;   /* File size - 8 */
+    *(int16_t *)(void*)(hdr + 0x14) = 1;                     /* Integer PCM format */
+    *(int16_t *)(void*)(hdr + 0x16) = ch;
+    *(int32_t *)(void*)(hdr + 0x18) = hz;
+    *(int32_t *)(void*)(hdr + 0x1C) = nAvgBytesPerSec;
+    *(int16_t *)(void*)(hdr + 0x20) = nBlockAlign;
+    *(int16_t *)(void*)(hdr + 0x22) = bips;
+    *(int32_t *)(void*)(hdr + 0x28) = data_bytes;
     return hdr;
 }
 #endif
@@ -112,7 +112,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         exit(1);
     }
 #ifdef MINIMP3_FLOAT_OUTPUT
-    int16_t *buffer = malloc(info.samples*sizeof(short));
+    int16_t *buffer = malloc(info.samples*sizeof(int16_t));
     mp3dec_f32_to_s16(info.buffer, buffer, info.samples);
     free(info.buffer);
 #else
@@ -130,7 +130,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             int max_samples = MINIMP3_MIN((size_t)ref_size/2, info.samples);
             for (i = 0; i < max_samples; i++)
             {
-                int MSEtemp = abs((int)buffer[i] - (int)(short)read16le(&buf_ref[i*sizeof(short)]));
+                int MSEtemp = abs((int)buffer[i] - (int)(int16_t)read16le(&buf_ref[i*sizeof(int16_t)]));
                 if (MSEtemp > maxdiff)
                     maxdiff = MSEtemp;
                 MSE += (float)MSEtemp*(float)MSEtemp;

@@ -6,6 +6,7 @@
     This software is distributed without any warranty.
     See <http://creativecommons.org/publicdomain/zero/1.0/>.
 */
+#include <stdint.h>
 
 #define MINIMP3_MAX_SAMPLES_PER_FRAME (1152*2)
 
@@ -27,10 +28,10 @@ extern "C" {
 
 void mp3dec_init(mp3dec_t *dec);
 #ifndef MINIMP3_FLOAT_OUTPUT
-typedef short mp3d_sample_t;
+typedef int16_t mp3d_sample_t;
 #else
 typedef float mp3d_sample_t;
-void mp3dec_f32_to_s16(const float *in, short *out, int num_samples);
+void mp3dec_f32_to_s16(const float *in, int16_t *out, int num_samples);
 #endif
 int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_sample_t *pcm, mp3dec_frame_info_t *info);
 
@@ -42,7 +43,6 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 
 #include <stdlib.h>
 #include <string.h>
-#include <stdint.h>
 
 #define MAX_FREE_FORMAT_FRAME_SIZE  2304    /* more than ISO spec's */
 #define MAX_FRAME_SYNC_MATCHES      10
@@ -764,7 +764,7 @@ static void L3_huffman(float *dst, bs_t *bs, const L3_gr_info_t *gr_info, const 
     {
         int tab_num = gr_info->table_select[ireg];
         int sfb_cnt = gr_info->region_count[ireg++];
-        const short *codebook = tabs + tabindex[tab_num];
+        const int16_t *codebook = tabs + tabindex[tab_num];
         int linbits = g_linbits[tab_num];
         do
         {
@@ -1371,11 +1371,11 @@ static void mp3d_DCT_II(float *grbuf, int n)
 }
 
 #ifndef MINIMP3_FLOAT_OUTPUT
-static short mp3d_scale_pcm(float sample)
+static int16_t mp3d_scale_pcm(float sample)
 {
-    if (sample >=  32766.5) return (short) 32767;
-    if (sample <= -32767.5) return (short)-32768;
-    short s = (short)(sample + .5f);
+    if (sample >=  32766.5) return (int16_t) 32767;
+    if (sample <= -32767.5) return (int16_t)-32768;
+    int16_t s = (int16_t)(sample + .5f);
     s -= (s < 0);   /* away from zero, to be compliant */
     return s;
 }
@@ -1743,7 +1743,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 }
 
 #ifdef MINIMP3_FLOAT_OUTPUT
-void mp3dec_f32_to_s16(const float *in, short *out, int num_samples)
+void mp3dec_f32_to_s16(const float *in, int16_t *out, int num_samples)
 {
     if(num_samples > 0)
     {
@@ -1786,16 +1786,16 @@ void mp3dec_f32_to_s16(const float *in, short *out, int num_samples)
 #endif
         }
 #endif
-        for(;i < num_samples;i++)
+        for(; i < num_samples; i++)
         {
             float sample = in[i] * 32768.0f;
-            if(sample >=  32766.5)
-                out[i] = (short) 32767;
+            if (sample >=  32766.5)
+                out[i] = (int16_t) 32767;
             else if (sample <= -32767.5)
-                out[i] = (short)-32768;
+                out[i] = (int16_t)-32768;
             else
             {
-                short s = (short)(sample + .5f);
+                int16_t s = (int16_t)(sample + .5f);
                 s -= (s < 0);   /* away from zero, to be compliant */
                 out[i] = s;
             }
