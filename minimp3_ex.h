@@ -14,7 +14,7 @@
 
 typedef struct
 {
-    int16_t *buffer;
+    mp3d_sample_t *buffer;
     size_t samples; /* channels included, byte size = samples*sizeof(int16_t) */
     int channels, hz, layer, avg_bitrate_kbps;
 } mp3dec_file_info_t;
@@ -78,7 +78,7 @@ static size_t mp3dec_skip_id3v2(const uint8_t *buf, size_t buf_size)
 void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
 {
     size_t orig_buf_size = buf_size;
-    short pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    mp3d_sample_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
     mp3dec_frame_info_t frame_info;
     memset(info, 0, sizeof(*info));
     memset(&frame_info, 0, sizeof(frame_info));
@@ -102,12 +102,12 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     if (!samples)
         return;
     samples *= frame_info.channels;
-    size_t allocated = (buf_size/frame_info.frame_bytes)*samples*2 + MINIMP3_MAX_SAMPLES_PER_FRAME*2;
+    size_t allocated = (buf_size/frame_info.frame_bytes)*samples*sizeof(mp3d_sample_t) + MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t);
     info->buffer = malloc(allocated);
     if (!info->buffer)
         return;
     info->samples = samples;
-    memcpy(info->buffer, pcm, info->samples*2);
+    memcpy(info->buffer, pcm, info->samples*sizeof(mp3d_sample_t));
     /* save info */
     info->channels = frame_info.channels;
     info->hz       = frame_info.hz;
@@ -118,7 +118,7 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     int frame_bytes;
     do
     {
-        if ((allocated - info->samples*2) < MINIMP3_MAX_SAMPLES_PER_FRAME*2)
+        if ((allocated - info->samples*sizeof(mp3d_sample_t)) < MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t))
         {
             allocated *= 2;
             info->buffer = realloc(info->buffer, allocated);
@@ -145,8 +145,8 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
         }
     } while (frame_bytes);
     /* reallocate to normal buffer size */
-    if (allocated != info->samples*2)
-        info->buffer = realloc(info->buffer, info->samples*2);
+    if (allocated != info->samples*sizeof(mp3d_sample_t))
+        info->buffer = realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
     info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
 }
 

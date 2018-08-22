@@ -75,7 +75,7 @@ static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_si
     d->info->hz       = info->hz;
     d->info->layer    = info->layer;
     /*printf("%d %d %d\n", frame_size, (int)offset, info->channels);*/
-    if ((d->allocated - d->info->samples*2) < MINIMP3_MAX_SAMPLES_PER_FRAME*2)
+    if ((d->allocated - d->info->samples*sizeof(mp3d_sample_t)) < MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t))
     {
         if (!d->allocated)
             d->allocated = 1024*1024;
@@ -111,6 +111,13 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         printf("error: file not found or read error");
         exit(1);
     }
+#ifdef MINIMP3_FLOAT_OUTPUT
+    int16_t *buffer = malloc(info.samples*sizeof(short));
+    mp3dec_f32_to_s16(info.buffer, buffer, info.samples);
+    free(info.buffer);
+#else
+    int16_t *buffer = info.buffer;
+#endif
 #ifndef MINIMP3_NO_WAV
     if (wave_out && file_out)
         fwrite(wav_header(0, 0, 0, 0), 1, 44, file_out);
@@ -123,15 +130,15 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             int max_samples = MINIMP3_MIN((size_t)ref_size/2, info.samples);
             for (i = 0; i < max_samples; i++)
             {
-                int MSEtemp = abs((int)info.buffer[i] - (int)(short)read16le(&buf_ref[i*sizeof(short)]));
+                int MSEtemp = abs((int)buffer[i] - (int)(short)read16le(&buf_ref[i*sizeof(short)]));
                 if (MSEtemp > maxdiff)
                     maxdiff = MSEtemp;
                 MSE += (float)MSEtemp*(float)MSEtemp;
             }
         }
         if (file_out)
-            fwrite(info.buffer, info.samples, sizeof(int16_t), file_out);
-        free(info.buffer);
+            fwrite(buffer, info.samples, sizeof(int16_t), file_out);
+        free(buffer);
     }
 
 #ifndef LIBFUZZER
