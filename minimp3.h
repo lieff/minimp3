@@ -27,11 +27,12 @@ extern "C" {
 
 void mp3dec_init(mp3dec_t *dec);
 #ifndef MINIMP3_FLOAT_OUTPUT
-int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, short *pcm, mp3dec_frame_info_t *info);
+typedef short mp3d_sample_t;
 #else
-int mp3dec_decode_frame(mp3dec_t *dec, const unsigned char *mp3, int mp3_bytes, float *pcm, mp3dec_frame_info_t *info);
+typedef float mp3d_sample_t;
 void mp3dec_f32_to_s16(const float *in, short *out, int num_samples);
 #endif
+int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_sample_t *pcm, mp3dec_frame_info_t *info);
 
 #ifdef __cplusplus
 }
@@ -1370,8 +1371,6 @@ static void mp3d_DCT_II(float *grbuf, int n)
 }
 
 #ifndef MINIMP3_FLOAT_OUTPUT
-typedef short mp3d_sample_t;
-
 static short mp3d_scale_pcm(float sample)
 {
     if (sample >=  32766.5) return (short) 32767;
@@ -1381,8 +1380,6 @@ static short mp3d_scale_pcm(float sample)
     return s;
 }
 #else
-typedef float mp3d_sample_t;
-
 static float mp3d_scale_pcm(float sample)
 {
     return sample / 32768.0f;
