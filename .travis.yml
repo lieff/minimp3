@@ -1,6 +1,8 @@
 language: c
 addons:
   apt:
+    sources:
+      - debian-sid
     packages:
       - libc6-dev-i386
       - linux-libc-dev:i386
