@@ -25,6 +25,7 @@ compiler:
 
 script:
     - scripts/build.sh
+    - (pushd player/; ./build.sh linux; popd)
 
 after_success:
     - bash <(curl -s https://codecov.io/bash)
