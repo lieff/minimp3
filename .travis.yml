@@ -1,8 +1,6 @@
 language: c
 addons:
   apt:
-    sources:
-      - sourceline: 'ppa:keithw/glfw3'
     packages:
       - libc6-dev-i386
       - linux-libc-dev:i386
@@ -17,8 +15,6 @@ addons:
       - libc6-powerpc-cross
       - libc6-dev-arm64-cross
       - libc6-dev-powerpc-cross
-      - libglfw3-dev
-      - libsdl2-dev
       - qemu
 
 os:
@@ -29,7 +25,7 @@ compiler:
 
 script:
     - scripts/build.sh
-    - (pushd player/; ./build.sh; popd)
+    - (pushd player/; ./build.sh linux; popd)
 
 after_success:
     - bash <(curl -s https://codecov.io/bash)
