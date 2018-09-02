@@ -3,8 +3,8 @@
 #include <string>
 #include <map>
 #include <vector>
+#include <SDL2/SDL.h>
 #include "glad.h"
-#include <GLFW/glfw3.h>
 #if defined(__APPLE__)
 #define USE_GLES3
 #include <OpenGL/gl3.h>
@@ -23,9 +23,9 @@
 #define NK_INCLUDE_FONT_BAKING
 #define NK_INCLUDE_DEFAULT_FONT
 #define NK_IMPLEMENTATION
-#define NK_GLFW_GL3_IMPLEMENTATION
+#define NK_SDL_GL3_IMPLEMENTATION
 #include "nuklear.h"
-#include "nuklear_glfw_gl3.h"
+#include "nuklear_sdl_gl3.h"
 #include "style.h"
 
 #define MAX_VERTEX_BUFFER  512 * 1024
@@ -35,10 +35,12 @@
 static PFNGLGENERATEMIPMAPPROC glGenerateMipmap;
 #endif
 static void       *_ctx;
-static GLFWwindow *_mainWindow;
+static SDL_Window *_mainWindow;
+static SDL_GLContext _mainContext;
 static std::map<std::string, int> _previews;
 static std::vector<std::string> _playlist;
 static void *_render;
+static bool _closeNextFrame;
 decoder _dec;
 
 static int load_image(const stbi_uc *data, int len)
@@ -66,69 +68,88 @@ static int load_image(const stbi_uc *data, int len)
 
 static void close()
 {
-    glfwMakeContextCurrent(_mainWindow);
+    nk_sdl_shutdown();
+    SDL_GL_MakeCurrent(_mainWindow, _mainContext);
     for (auto it = _previews.begin(); it != _previews.end(); it++)
     {
         GLuint tex = it->second;
         glDeleteTextures(1, &tex);
     }
-    glfwDestroyWindow(_mainWindow);
-    glfwTerminate();
+    SDL_GL_DeleteContext(_mainContext);
+    SDL_DestroyWindow(_mainWindow);
+    SDL_Quit();
 }
 
 static int init()
 {
-    if (!glfwInit())
+    SDL_SetHint(SDL_HINT_VIDEO_HIGHDPI_DISABLED, "0");
+    if (!SDL_Init(SDL_INIT_VIDEO) < 0)
     {
-        printf("error: glfw init failed\n");
+        printf("error: sdl2 video init failed %s\n", SDL_GetError());
         return false;
     }
 #ifdef USE_GLES3
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
-    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 3);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_PROFILE_MASK, SDL_GL_CONTEXT_PROFILE_CORE);
+    // SDL_GL_SetAttribute(GLFW_OPENGL_FORWARD_COMPAT, GL_TRUE);
 #else
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 2);
-    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 0);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
+    SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 0);
 #endif
-    glfwWindowHint(GLFW_RESIZABLE, 1);
-    _mainWindow = glfwCreateWindow(400, 600, "Lion Audio Player", NULL, NULL);
+    _mainWindow = SDL_CreateWindow("Lion Audio Player", SDL_WINDOWPOS_CENTERED, SDL_WINDOWPOS_CENTERED, 400, 600, SDL_WINDOW_RESIZABLE|SDL_WINDOW_OPENGL|SDL_WINDOW_SHOWN|SDL_WINDOW_ALLOW_HIGHDPI);
     if (!_mainWindow)
     {
-        printf("error: create window failed\n"); fflush(stdout);
+        printf("error: create window failed: %s\n", SDL_GetError()); 
+        fflush(stdout);
         exit(1);
     }
-    glfwMakeContextCurrent(_mainWindow);
+    if((_mainContext = SDL_GL_CreateContext(_mainWindow)) == NULL)
+    {
+        printf("error: create context failed: %s\n", SDL_GetError()); 
+        fflush(stdout);
+        exit(1);
+    }
+    SDL_GL_MakeCurrent(_mainWindow, _mainContext);
+    
 #ifdef USE_GLES3
-    glGenerateMipmap = (PFNGLGENERATEMIPMAPPROC)glfwGetProcAddress("glGenerateMipmap");
+    glGenerateMipmap = (PFNGLGENERATEMIPMAPPROC)SDL_GL_GetProcAddress("glGenerateMipmap");
 #endif
-    glfwSetInputMode(_mainWindow, GLFW_STICKY_MOUSE_BUTTONS, 1);
 
     gladLoadGL();
-    _ctx = (void*)nk_glfw3_init(_mainWindow, NK_GLFW3_INSTALL_CALLBACKS);
+    _ctx = (void*)nk_sdl_init(_mainWindow);
     struct nk_font_atlas *atlas;
     struct nk_font_config fconfig = nk_font_config(20);
     fconfig.range = nk_font_cyrillic_glyph_ranges();
-    nk_glfw3_font_stash_begin(&atlas);
+    nk_sdl_font_stash_begin(&atlas);
     atlas->default_font = nk_font_atlas_add_from_memory(atlas, FreeSans, FreeSansLen, 20, &fconfig);;
-    nk_glfw3_font_stash_end();
+    nk_sdl_font_stash_end();
 }
 
 static void tick()
 {
-    //glfwMakeContextCurrent(_mainWindow);
+    nk_context *ctx = (nk_context *)_ctx;
+    
     float bg[4];
     nk_color_fv(bg, nk_rgb(28,48,62));
     int width, height, i;
-    glfwGetWindowSize(_mainWindow, &width, &height);
+    SDL_GL_GetDrawableSize(_mainWindow, &width, &height);
     glViewport(0, 0, width, height);
     glClearColor(bg[0], bg[1], bg[2], bg[3]);
     glClear(GL_COLOR_BUFFER_BIT);
-    glfwPollEvents();
+    
+    // Run events
+    SDL_Event event;
+    nk_input_begin(ctx);
+    while(SDL_PollEvent(&event))
+    {
+        nk_sdl_handle_event(&event);
+        
+        if(event.type == SDL_QUIT)
+            _closeNextFrame = true;
+    }
+    nk_input_end(ctx);
 
-    nk_context *ctx = (nk_context *)_ctx;
-    nk_glfw3_new_frame();
     if (nk_begin(ctx, "Player", nk_rect(0, 0, width, height), 0))
     {
         nk_layout_row_dynamic(ctx, 25, 2);
@@ -196,18 +217,18 @@ static void tick()
         }
     }
     nk_end(ctx);
-    nk_glfw3_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
-    glfwSwapBuffers(_mainWindow);
-    //glfwMakeContextCurrent(0);
+    nk_sdl_render(NK_ANTI_ALIASING_ON, MAX_VERTEX_BUFFER, MAX_ELEMENT_BUFFER);
+    SDL_GL_SwapWindow(_mainWindow);
 }
 
 int main(int argc, char *argv[])
 {
+    _closeNextFrame = false;
     sdl_audio_init(&_render, 44100, 2, 0, 0);
     init();
     for (int i = 1; i < argc; i++)
         _playlist.push_back(argv[i]);
-    while (!glfwWindowShouldClose(_mainWindow))
+    while (!_closeNextFrame)
     {
         tick();
     }
