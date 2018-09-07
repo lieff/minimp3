@@ -47,7 +47,9 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 #include <string.h>
 
 #define MAX_FREE_FORMAT_FRAME_SIZE  2304    /* more than ISO spec's */
+#ifndef MAX_FRAME_SYNC_MATCHES
 #define MAX_FRAME_SYNC_MATCHES      10
+#endif /* MAX_FRAME_SYNC_MATCHES */
 
 #define MAX_L3_FRAME_PAYLOAD_BYTES  MAX_FREE_FORMAT_FRAME_SIZE /* MUST be >= 320000/8/32000*1152 = 1440 */
 
