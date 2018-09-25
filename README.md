@@ -41,7 +41,7 @@ Comparison by features:
 | no vector opts | SSE/NEON intrinsics |
 | no free format | free format support |
 
-Below, you can find the benchmark and conformance test for keyj's minimp3: 
+Below, you can find the benchmark and conformance test for keyj's minimp3:
 
 
 | Vector      | Hz    | Samples| Sec    | Clockticks | Clockticks per second | PSNR | Max diff |
@@ -58,15 +58,15 @@ Below, you can find the benchmark and conformance test for keyj's minimp3:
 |si_huff.bit  | 44100 | 86400  | 1.959  | 21121376  | 10.780M | 27.80 | 65535 |
 |sin1k0db.bit | 44100 | 730368 | 16.561 | 55569636  | 3.355M  | 0.15  | 58814 |
 
-Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), and free 
-format is unsupported. This caused some problems when it was used 
+Keyj minimp3 conformance test fails on all vectors (PSNR < 96db), and free
+format is unsupported. This caused some problems when it was used
 [here](https://github.com/lieff/lvg), and was the main motivation for this work.
 
 ## Usage
 
 First, we need to initialize the decoder structure:
 
-```
+```c
 //#define MINIMP3_ONLY_MP3
 //#define MINIMP3_ONLY_SIMD
 //#define MINIMP3_NO_SIMD
@@ -89,7 +89,7 @@ MINIMP3_FLOAT_OUTPUT makes ``mp3dec_decode_frame()`` output to be float instead 
 
 Then. we decode the input stream frame-by-frame:
 
-```
+```c
     /*typedef struct
     {
         int frame_bytes;
@@ -104,8 +104,8 @@ Then. we decode the input stream frame-by-frame:
     samples = mp3dec_decode_frame(&mp3d, input_buf, buf_size, pcm, &info);
 ```
 
-The ``mp3dec_decode_frame()`` function decodes one full MP3 frame from the 
-input buffer, which must be large enough to hold one full frame. 
+The ``mp3dec_decode_frame()`` function decodes one full MP3 frame from the
+input buffer, which must be large enough to hold one full frame.
 
 The decoder will analyze the input buffer to properly sync with the MP3 stream,
 and will skip ID3 data, as well as any data which is not valid. Short buffers
@@ -113,29 +113,29 @@ may cause false sync and can produce 'squealing' artefacts. The bigger the size
 of the input buffer, the more reliable the sync procedure. We recommend having
 as many as 10 consecutive MP3 frames (~16KB) in the input buffer at a time.
 
-The size of the consumed MP3 data is returned in the ``mp3dec_frame_info_t`` 
-field of the ``frame_bytes`` struct; you must remove the data corresponding to 
-the ``frame_bytes`` field  from the input buffer before the next decoder 
-invocation.  
+The size of the consumed MP3 data is returned in the ``mp3dec_frame_info_t``
+field of the ``frame_bytes`` struct; you must remove the data corresponding to
+the ``frame_bytes`` field  from the input buffer before the next decoder
+invocation.
 
 The decoding function returns the number of decoded samples. The following cases
 are possible:
 
-- **0:** No MP3 data was found in the input buffer  
-- **384:**  Layer 1  
-- **576:**  MPEG 2 Layer 3  
-- **1152:** Otherwise  
+- **0:** No MP3 data was found in the input buffer
+- **384:**  Layer 1
+- **576:**  MPEG 2 Layer 3
+- **1152:** Otherwise
 
 The following is a description of the possible combinations of the number of
 samples and ``frame_bytes`` field values:
 
-- More than 0 samples and ``frame_bytes > 0``:  Succesful decode  
-- 0 samples and ``frame_bytes >  0``: The decoder skipped ID3 or invalid data  
+- More than 0 samples and ``frame_bytes > 0``:  Succesful decode
+- 0 samples and ``frame_bytes >  0``: The decoder skipped ID3 or invalid data
 - 0 samples and ``frame_bytes == 0``: Insufficient data
 
 If ``frame_bytes == 0``, the other fields may be uninitialized or unchanged; if
-``frame_bytes != 0``, the other fields are available. The application may call 
-``mp3dec_init()`` when changing decode position, but this is not necessary.  
+``frame_bytes != 0``, the other fields are available. The application may call
+``mp3dec_init()`` when changing decode position, but this is not necessary.
 
 As a special case, the decoder supports already split MP3 streams (for example,
 after doing an MP4 demux). In this case, the input buffer must contain _exactly
@@ -156,7 +156,7 @@ in size even in this case.
 If you need only decode file/buffer, you can use optional high-level API.
 Just ``#include`` ``minimp3_ex.h`` instead and use following additional functions:
 
-```
+```c
 typedef struct
 {
     int16_t *buffer;
@@ -183,7 +183,7 @@ MINIMP3_ALLOW_MONO_STEREO_TRANSITION allows mixing mono and stereo in same file.
 In that case ``mp3dec_frame_info_t->channels = 0`` is reported on such files and correct channels number passed to progress_cb callback for each frame in mp3dec_frame_info_t structure.
 MP3D_PROGRESS_CB is optional and can be NULL, example of file decoding:
 
-```
+```c
     mp3dec_t mp3d;
     mp3dec_file_info_t info;
     if (mp3dec_load(&mp3d, input_file_name, &info, NULL, NULL))
