@@ -103,7 +103,7 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
         return;
     samples *= frame_info.channels;
     size_t allocated = (buf_size/frame_info.frame_bytes)*samples*sizeof(mp3d_sample_t) + MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t);
-    info->buffer = malloc(allocated);
+    info->buffer = (mp3d_sample_t*)malloc(allocated);
     if (!info->buffer)
         return;
     info->samples = samples;
@@ -121,7 +121,7 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
         if ((allocated - info->samples*sizeof(mp3d_sample_t)) < MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t))
         {
             allocated *= 2;
-            info->buffer = realloc(info->buffer, allocated);
+            info->buffer = (mp3d_sample_t*)realloc(info->buffer, allocated);
         }
         samples = mp3dec_decode_frame(dec, buf, buf_size, info->buffer + info->samples, &frame_info);
         frame_bytes = frame_info.frame_bytes;
@@ -146,7 +146,7 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     } while (frame_bytes);
     /* reallocate to normal buffer size */
     if (allocated != info->samples*sizeof(mp3d_sample_t))
-        info->buffer = realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
+        info->buffer = (mp3d_sample_t*)realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
     info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
 }
 
@@ -246,7 +246,7 @@ retry_open:
 
     map_info->size = st.st_size;
 retry_mmap:
-    map_info->buffer = mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, file, 0);
+    map_info->buffer = (const uint8_t *)mmap(NULL, st.st_size, PROT_READ, MAP_PRIVATE | MAP_POPULATE, file, 0);
     if (MAP_FAILED == map_info->buffer && (errno == EAGAIN || errno == EINTR))
         goto retry_mmap;
     close(file);
