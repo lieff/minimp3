@@ -310,10 +310,10 @@ static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
     FILE *file = fopen(file_name, "rb");
     if (!file)
         return -1;
-
+    long size = -1;
     if (fseek(file, 0, SEEK_END))
         goto error;
-    long size = ftell(file);
+    size = ftell(file);
     if (size < 0)
         goto error;
     map_info->size = (size_t)size;
