@@ -341,7 +341,7 @@ int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info, 
         return ret;
     mp3dec_load_buf(dec, map_info.buffer, map_info.size, info, progress_cb, user_data);
     mp3dec_close_file(&map_info);
-    return 0;
+    return info->samples ? 0 : -1;
 }
 
 int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_data)

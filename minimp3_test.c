@@ -108,8 +108,11 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     if (mp3dec_load(&mp3d, input_file_name, &info, 0, 0))
 #endif
     {
-        printf("error: file not found or read error");
-        exit(1);
+        if (ref_size)
+        {
+            printf("error: file not found or read error");
+            exit(1);
+        }
     }
 #ifdef MINIMP3_FLOAT_OUTPUT
     int16_t *buffer = malloc(info.samples*sizeof(int16_t));
