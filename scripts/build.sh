@@ -6,7 +6,7 @@ pushd $CUR_DIR/..
 
 set -e
 
-CFLAGS="-O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector \
+CFLAGS="-O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronous-unwind-tables -fno-stack-protector -U_FORTIFY_SOURCE \
 -ffunction-sections -fdata-sections -Wl,--gc-sections"
 
 echo testing mp4 mode...
