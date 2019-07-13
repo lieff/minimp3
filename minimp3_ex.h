@@ -88,6 +88,10 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
         return;
     buf      += id3v2size;
     buf_size -= id3v2size;
+#ifdef MINIMP3_SKIP_ID3V1
+    if (buf_size > 128 && !strncmp((char *)buf + buf_size - 128, "TAG", 3))
+        buf_size -= 128;
+#endif
     /* try to make allocation size assumption by first frame */
     mp3dec_init(dec);
     int samples;
