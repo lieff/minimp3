@@ -277,6 +277,7 @@ static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
 {
     memset(map_info, 0, sizeof(*map_info));
 
+    HANDLE mapping = NULL;
     HANDLE file = CreateFileA(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
     if (INVALID_HANDLE_VALUE == file)
         return -1;
@@ -286,10 +287,10 @@ static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
         goto error;
     map_info->size = s.QuadPart;
 
-    HANDLE mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
+    mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
     if (!mapping)
         goto error;
-    map_info->buffer = MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, s.QuadPart);
+    map_info->buffer = (const uint8_t*) MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, s.QuadPart);
     CloseHandle(mapping);
     if (!map_info->buffer)
         goto error;
@@ -386,7 +387,7 @@ int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int seek_method)
 #else
 void mp3dec_ex_close(mp3dec_ex_t *dec)
 {
-    free(dec->file.buffer);
+    free((void*)dec->file.buffer);
     memset(dec, 0, sizeof(*dec));
 }
 #endif
