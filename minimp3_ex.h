@@ -65,14 +65,27 @@ int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int seek_method);
 
 #ifdef MINIMP3_IMPLEMENTATION
 
-static size_t mp3dec_skip_id3v2(const uint8_t *buf, size_t buf_size)
+static void mp3dec_skip_id3(const uint8_t **pbuf, size_t *pbuf_size)
 {
-    if (buf_size > 10 && !strncmp((char *)buf, "ID3", 3))
+    char *buf = (char *)(*pbuf);
+    size_t buf_size = *pbuf_size;
+    if (buf_size > 10 && !strncmp(buf, "ID3", 3))
     {
-        return (((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) |
+        size_t id3v2size = (((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) |
             ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f)) + 10;
+        buf      += id3v2size;
+        buf_size -= id3v2size;
     }
-    return 0;
+#ifdef MINIMP3_SKIP_ID3V1
+    if (buf_size > 128 && !strncmp(buf + buf_size - 128, "TAG", 3))
+    {
+        buf_size -= 128;
+        if (buf_size > 227 && !strncmp(buf + buf_size - 227, "TAG+", 4))
+            buf_size -= 227;
+    }
+#endif
+    *pbuf = (const uint8_t *)buf;
+    *pbuf_size = buf_size;
 }
 
 void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
@@ -82,20 +95,10 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     mp3dec_frame_info_t frame_info;
     memset(info, 0, sizeof(*info));
     memset(&frame_info, 0, sizeof(frame_info));
-    /* skip id3v2 */
-    size_t id3v2size = mp3dec_skip_id3v2(buf, buf_size);
-    if (id3v2size > buf_size)
+    /* skip id3 */
+    mp3dec_skip_id3(&buf, &buf_size);
+    if (!buf_size)
         return;
-    buf      += id3v2size;
-    buf_size -= id3v2size;
-#ifdef MINIMP3_SKIP_ID3V1
-    if (buf_size > 128 && !strncmp((char *)buf + buf_size - 128, "TAG", 3))
-    {
-        buf_size -= 128;
-        if (buf_size > 227 && !strncmp((char *)buf + buf_size - 227, "TAG+", 4))
-            buf_size -= 227;
-    }
-#endif
     /* try to make allocation size assumption by first frame */
     mp3dec_init(dec);
     int samples;
@@ -162,15 +165,13 @@ void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB cal
 {
     if (!callback)
         return;
+    const uint8_t *orig_buf = buf;
+    /* skip id3 */
+    mp3dec_skip_id3(&buf, &buf_size);
+    if (!buf_size)
+        return;
     mp3dec_frame_info_t frame_info;
     memset(&frame_info, 0, sizeof(frame_info));
-    /* skip id3v2 */
-    size_t id3v2size = mp3dec_skip_id3v2(buf, buf_size);
-    if (id3v2size > buf_size)
-        return;
-    const uint8_t *orig_buf = buf;
-    buf      += id3v2size;
-    buf_size -= id3v2size;
     do
     {
         int free_format_bytes = 0, frame_size = 0;
