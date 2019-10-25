@@ -1,14 +1,16 @@
+dist: bionic
 language: c
 addons:
   apt:
     packages:
+      - build-essential
       - libc6-dev-i386
       - linux-libc-dev:i386
       - gcc-arm-none-eabi
       - libnewlib-arm-none-eabi
-      - gcc-4.8-multilib
-      - gcc-4.8-aarch64-linux-gnu
-      - gcc-4.8-powerpc-linux-gnu
+      - gcc-7-multilib
+      - gcc-7-aarch64-linux-gnu
+      - gcc-7-powerpc-linux-gnu
       - gcc-aarch64-linux-gnu
       - gcc-powerpc-linux-gnu
       - libc6-arm64-cross
@@ -16,6 +18,7 @@ addons:
       - libc6-dev-arm64-cross
       - libc6-dev-powerpc-cross
       - qemu
+      - lcov
 
 os:
     - linux
