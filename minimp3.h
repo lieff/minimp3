@@ -163,6 +163,7 @@ end:
 }
 #elif defined(__ARM_NEON) || defined(__aarch64__)
 #include <arm_neon.h>
+#define HAVE_SSE 0
 #define HAVE_SIMD 1
 #define VSTORE vst1q_f32
 #define VLD vld1q_f32
@@ -180,6 +181,7 @@ static int have_simd()
     return 1;
 }
 #else /* SIMD checks... */
+#define HAVE_SSE 0
 #define HAVE_SIMD 0
 #ifdef MINIMP3_ONLY_SIMD
 #error MINIMP3_ONLY_SIMD used, but SSE/NEON not enabled
