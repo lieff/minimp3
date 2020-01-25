@@ -447,7 +447,7 @@ bool thread_name(const char *name)
 #endif
 }
 
-bool thread_sleep(uint32_t milliseconds)
+void thread_sleep(uint32_t milliseconds)
 {
 #ifdef _WIN32
     Sleep(milliseconds);

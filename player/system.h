@@ -96,7 +96,7 @@ bool event_destroy(HANDLE event);
 bool thread_close(HANDLE thread);
 void *thread_wait(HANDLE thread);
 bool thread_name(const char *name);
-bool thread_sleep(uint32_t milliseconds);
+void thread_sleep(uint32_t milliseconds);
 
 uint64_t GetTime();
 

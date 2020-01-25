@@ -61,7 +61,8 @@ static int load_image(const stbi_uc *data, int len)
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA8, width, height, 0, GL_RGBA, GL_UNSIGNED_BYTE, pix);
 #ifdef USE_GLES3
-    glGenerateMipmap(GL_TEXTURE_2D);
+    if (glGenerateMipmap)
+        glGenerateMipmap(GL_TEXTURE_2D);
 #endif
     return (int)tex;
 }
@@ -124,6 +125,7 @@ static int init()
     nk_sdl_font_stash_begin(&atlas);
     atlas->default_font = nk_font_atlas_add_from_memory(atlas, FreeSans, FreeSansLen, 20, &fconfig);;
     nk_sdl_font_stash_end();
+    return true;
 }
 
 static void tick()
