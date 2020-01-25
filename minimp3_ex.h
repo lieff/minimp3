@@ -90,21 +90,30 @@ static void mp3dec_skip_id3(const uint8_t **pbuf, size_t *pbuf_size)
 {
     char *buf = (char *)(*pbuf);
     size_t buf_size = *pbuf_size;
-    if (buf_size > 10 && !strncmp(buf, "ID3", 3))
+#ifndef MINIMP3_NOSKIP_ID3V2
+    if (buf_size > 10 && !memcmp(buf, "ID3", 3) && !((buf[5] & 15) || (buf[6] & 0x80) || (buf[7] & 0x80) || (buf[8] & 0x80) || (buf[9] & 0x80)))
     {
-        size_t id3v2size = (((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) |
-            ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f)) + 10;
+        size_t id3v2size = (((buf[6] & 0x7f) << 21) | ((buf[7] & 0x7f) << 14) | ((buf[8] & 0x7f) << 7) | (buf[9] & 0x7f)) + 10;
+        if ((buf[5] & 16))
+            id3v2size += 10; /* footer */
         if (id3v2size >= buf_size)
             id3v2size = buf_size;
         buf      += id3v2size;
         buf_size -= id3v2size;
     }
-#ifdef MINIMP3_SKIP_ID3V1
-    if (buf_size > 128 && !strncmp(buf + buf_size - 128, "TAG", 3))
+#endif
+#ifndef MINIMP3_NOSKIP_ID3V1
+    if (buf_size > 128 && !memcmp(buf + buf_size - 128, "TAG", 3))
     {
         buf_size -= 128;
-        if (buf_size > 227 && !strncmp(buf + buf_size - 227, "TAG+", 4))
+        if (buf_size > 227 && !memcmp(buf + buf_size - 227, "TAG+", 4))
             buf_size -= 227;
+    }
+#endif
+#ifndef MINIMP3_NOSKIP_APEV2
+    if (buf_size > 32 && !memcmp(buf + buf_size - 32, "APETAGEX", 8))
+    {
+        buf_size -= 32;
     }
 #endif
     *pbuf = (const uint8_t *)buf;

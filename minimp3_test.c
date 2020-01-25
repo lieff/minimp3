@@ -3,7 +3,6 @@
 /*#define MINIMP3_NONSTANDARD_BUT_LOGICAL*/
 #define MINIMP3_IMPLEMENTATION
 #define MINIMP3_ALLOW_MONO_STEREO_TRANSITION
-#define MINIMP3_SKIP_ID3V1
 #include "minimp3_ex.h"
 #include <stdio.h>
 #include <math.h>
