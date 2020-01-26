@@ -12,6 +12,7 @@
 #define MP3D_SEEK_TO_SAMPLE 1
 
 #define MINIMP3_PREDECODE_FRAMES 2 /* frames to pre-decode and skip after seek (to fill internal structures) */
+/*#define MINIMP3_SEEK_IDX_LINEAR_SEARCH*/ /* define to use linear index search instead of binary search on seek */
 
 #define MP3D_E_MEMORY -1
 
@@ -290,6 +291,30 @@ int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, in
     return 0;
 }
 
+#ifndef MINIMP3_SEEK_IDX_LINEAR_SEARCH
+static size_t mp3dec_idx_binary_search(mp3dec_index_t *idx, uint64_t position)
+{
+    size_t end = idx->num_frames, start = 0, index = 0;
+    while (start <= end)
+    {
+        size_t mid = (start + end) / 2;
+        if (idx->frames[mid].sample >= position)
+        {   /* move left side. */
+            if (idx->frames[mid].sample == position)
+                return mid;
+            end = mid - 1;
+        }  else
+        {   /* move to right side */
+            index = mid;
+            start = mid + 1;
+            if (start == idx->num_frames)
+                break;
+        }
+    }
+    return index;
+}
+#endif
+
 int mp3dec_ex_seek(mp3dec_ex_t *dec, uint64_t position)
 {
     size_t i;
@@ -313,15 +338,23 @@ seek_zero:
     }
     if (!dec->index.frames)
         goto seek_zero; /* no frames in file - seek to zero */
+#ifdef MINIMP3_SEEK_IDX_LINEAR_SEARCH
     for (i = 0; i < dec->index.num_frames; i++)
     {
         if (dec->index.frames[i].sample >= position)
             break;
     }
+#else
+    i = mp3dec_idx_binary_search(&dec->index, position);
+#endif
     if (i)
     {
         int to_fill_bytes = 511;
-        int skip_frames = MINIMP3_PREDECODE_FRAMES + ((dec->index.frames[i].sample == position) ? 0 : 1);
+        int skip_frames = MINIMP3_PREDECODE_FRAMES
+#ifdef MINIMP3_SEEK_IDX_LINEAR_SEARCH
+         + ((dec->index.frames[i].sample == position) ? 0 : 1)
+#endif
+        ;
         i -= MINIMP3_MIN(i, (size_t)skip_frames);
         while (i && to_fill_bytes)
         {   /* make sure bit-reservoir is filled when we start decoding */
