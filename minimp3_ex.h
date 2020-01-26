@@ -11,6 +11,8 @@
 #define MP3D_SEEK_TO_BYTE   0
 #define MP3D_SEEK_TO_SAMPLE 1
 
+#define MINIMP3_PREDECODE_FRAMES 2 /* frames to pre-decode and skip after seek (to fill internal structures) */
+
 #define MP3D_E_MEMORY -1
 
 typedef struct
@@ -45,17 +47,18 @@ typedef struct
     mp3dec_t mp3d;
     mp3dec_map_info_t file;
     mp3dec_index_t index;
-    uint64_t offset, samples;
+    uint64_t offset, samples, start_offset;
     mp3dec_frame_info_t info;
     mp3d_sample_t buffer[MINIMP3_MAX_SAMPLES_PER_FRAME];
 #ifndef MINIMP3_NO_STDIO
     int is_file;
 #endif
+    int free_format_bytes;
     int seek_method, vbr_tag_found;
     int buffer_samples, buffer_consumed, to_skip;
 } mp3dec_ex_t;
 
-typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, size_t offset, mp3dec_frame_info_t *info);
+typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t offset, mp3dec_frame_info_t *info);
 typedef int (*MP3D_PROGRESS_CB)(void *user_data, size_t file_size, size_t offset, mp3dec_frame_info_t *info);
 
 #ifdef __cplusplus
@@ -223,7 +226,7 @@ size_t mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB c
         frames++;
         if (callback)
         {
-            if (callback(user_data, hdr, frame_size, hdr - orig_buf, &frame_info))
+            if (callback(user_data, hdr, frame_size, free_format_bytes, hdr - orig_buf, &frame_info))
                 break;
         }
         buf      += frame_size;
@@ -232,17 +235,19 @@ size_t mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB c
     return frames;
 }
 
-static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_size, size_t offset, mp3dec_frame_info_t *info)
+static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t offset, mp3dec_frame_info_t *info)
 {
-    (void)frame_size;
+    static const char g_xing_tag[4] = { 'X', 'i', 'n', 'g' };
+    static const char g_info_tag[4] = { 'I', 'n', 'f', 'o' };
     mp3dec_frame_t *idx_frame;
     mp3dec_ex_t *dec = (mp3dec_ex_t *)user_data;
     if (!dec->index.frames && !dec->vbr_tag_found)
     {   /* detect VBR tag and try to avoid full scan */
+        int i;
         dec->info = *info;
-        static const char g_xing_tag[4] = { 'X', 'i', 'n', 'g' };
-        static const char g_info_tag[4] = { 'I', 'n', 'f', 'o' };
-        for (int i = 5; i < frame_size - 12; i++)
+        dec->start_offset = offset;
+        dec->free_format_bytes = free_format_bytes; /* should not change */
+        for (i = 5; i < frame_size - 12; i++)
         {
             const uint8_t *tag = frame + i;
             if (!memcmp(g_xing_tag, tag, 4) || !memcmp(g_info_tag, tag, 4))
@@ -296,12 +301,13 @@ int mp3dec_ex_seek(mp3dec_ex_t *dec, uint64_t position)
     if (0 == position)
     {   /* optimize seek to zero, no index needed */
 seek_zero:
-        dec->offset  = 0;
+        dec->offset  = dec->start_offset;
         dec->to_skip = 0;
         goto do_exit;
     }
     if (!dec->index.frames && dec->vbr_tag_found)
     {   /* no index created yet (vbr tag used to calculate track length) */
+        dec->samples = 0;
         if (mp3dec_iterate_buf(dec->file.buffer, dec->file.size, mp3dec_load_index, dec) > 0 && !dec->index.frames)
             return MP3D_E_MEMORY;
     }
@@ -309,11 +315,22 @@ seek_zero:
         goto seek_zero; /* no frames in file - seek to zero */
     for (i = 0; i < dec->index.num_frames; i++)
     {
-        if (dec->index.frames[i].sample > position)
+        if (dec->index.frames[i].sample >= position)
             break;
     }
     if (i)
-        i--;
+    {
+        int to_fill_bytes = 511;
+        int skip_frames = MINIMP3_PREDECODE_FRAMES + ((dec->index.frames[i].sample == position) ? 0 : 1);
+        i -= MINIMP3_MIN(i, (size_t)skip_frames);
+        while (i && to_fill_bytes)
+        {   /* make sure bit-reservoir is filled when we start decoding */
+            const uint8_t *hdr = dec->file.buffer + dec->index.frames[i - 1].offset;
+            int frame_size = hdr_frame_bytes(hdr, dec->free_format_bytes) + hdr_padding(hdr);
+            to_fill_bytes -= MINIMP3_MIN(to_fill_bytes, frame_size);
+            i--;
+        }
+    }
     dec->offset = dec->index.frames[i].offset;
     dec->to_skip = position - dec->index.frames[i].sample;
 do_exit:
