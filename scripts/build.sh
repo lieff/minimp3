@@ -11,7 +11,11 @@ CFLAGS="-O2 -std=c89 -Wall -Wextra -Wmissing-prototypes -Werror -fno-asynchronou
 
 echo testing mp4 mode...
 gcc $CFLAGS -DMP4_MODE -o minimp3 minimp3_test.c -lm
-scripts/test_mp4_mode.sh
+scripts/test_mode.sh 1
+
+echo testing stream mode...
+gcc $CFLAGS -DMP4_MODE -o minimp3 minimp3_test.c -lm
+scripts/test_mode.sh 2
 
 echo testing coverage x86 w sse...
 gcc -coverage -O0 -m32 -std=c89 -msse2 -DMINIMP3_TEST -DMINIMP3_NO_WAV -o minimp3 minimp3_test.c -lm
