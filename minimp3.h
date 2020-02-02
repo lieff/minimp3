@@ -1674,7 +1674,7 @@ static int mp3d_find_frame(const uint8_t *mp3, int mp3_bytes, int *free_format_b
         }
     }
     *ptr_frame_bytes = 0;
-    return i;
+    return mp3_bytes;
 }
 
 void mp3dec_init(mp3dec_t *dec)
