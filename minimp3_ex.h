@@ -13,13 +13,14 @@
 
 #define MINIMP3_PREDECODE_FRAMES 2 /* frames to pre-decode and skip after seek (to fill internal structures) */
 /*#define MINIMP3_SEEK_IDX_LINEAR_SEARCH*/ /* define to use linear index search instead of binary search on seek */
+#define MINIMP3_RING_SIZE (128*1024)
 
 #define MP3D_E_MEMORY -1
 
 typedef struct
 {
     mp3d_sample_t *buffer;
-    size_t samples; /* channels included, byte size = samples*sizeof(int16_t) */
+    size_t samples; /* channels included, byte size = samples*sizeof(mp3d_sample_t) */
     int channels, hz, layer, avg_bitrate_kbps;
 } mp3dec_file_info_t;
 
@@ -41,7 +42,8 @@ typedef struct
     size_t num_frames, capacity;
 } mp3dec_index_t;
 
-/*typedef int (*MP3D_READ_CB)(void *buf, size_t size, void *user_data);*/
+typedef int (*MP3D_READ_CB)(void *buf, size_t size, void *user_data);
+typedef int (*MP3D_SEEK_CB)(size_t position);
 
 typedef struct
 {
@@ -72,10 +74,10 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
 size_t mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data);
 /* streaming decoder with seeking capability */
 int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, int seek_method);
-/*int mp3dec_ex_open_cb(mp3dec_ex_t *dec, MP3D_READ_CB cb, void *user_data, uint64_t file_size, int seek_method);*/
+int mp3dec_ex_open_cb(mp3dec_ex_t *dec, MP3D_READ_CB read_cb, void *read_user_data, MP3D_SEEK_CB seek_cb, void *seek_user_data, int seek_method);
 void mp3dec_ex_close(mp3dec_ex_t *dec);
 int mp3dec_ex_seek(mp3dec_ex_t *dec, uint64_t position);
-size_t mp3dec_ex_read(mp3dec_ex_t *dec, int16_t *buf, size_t samples);
+size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples);
 #ifndef MINIMP3_NO_STDIO
 /* stdio versions with file pre-load */
 int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
@@ -373,7 +375,7 @@ do_exit:
     return 0;
 }
 
-size_t mp3dec_ex_read(mp3dec_ex_t *dec, int16_t *buf, size_t samples)
+size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
 {
     size_t samples_requested = samples;
     mp3dec_frame_info_t frame_info;
@@ -381,7 +383,7 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, int16_t *buf, size_t samples)
     if (dec->buffer_consumed < dec->buffer_samples)
     {
         size_t to_copy = MINIMP3_MIN((size_t)(dec->buffer_samples - dec->buffer_consumed), samples);
-        memcpy(buf, dec->buffer + dec->buffer_consumed, to_copy*sizeof(int16_t));
+        memcpy(buf, dec->buffer + dec->buffer_consumed, to_copy*sizeof(mp3d_sample_t));
         buf += to_copy;
         dec->buffer_consumed += to_copy;
         samples -= to_copy;
@@ -404,7 +406,7 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, int16_t *buf, size_t samples)
                 dec->to_skip -= skip;
             }
             size_t to_copy = MINIMP3_MIN((size_t)(dec->buffer_samples - dec->buffer_consumed), samples);
-            memcpy(buf, dec->buffer + dec->buffer_consumed, to_copy*sizeof(int16_t));
+            memcpy(buf, dec->buffer + dec->buffer_consumed, to_copy*sizeof(mp3d_sample_t));
             buf += to_copy;
             dec->buffer_consumed += to_copy;
             samples -= to_copy;
@@ -428,6 +430,10 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, int16_t *buf, size_t samples)
 #include <sys/stat.h>
 #include <unistd.h>
 #include <fcntl.h>
+#if !defined(_GNU_SOURCE)
+#include <sys/ipc.h>
+#include <sys/shm.h>
+#endif
 #if !defined(MAP_POPULATE) && defined(__linux__)
 #define MAP_POPULATE 0x08000
 #elif !defined(MAP_POPULATE)
@@ -467,6 +473,98 @@ retry_mmap:
         return -1;
     return 0;
 }
+
+static void mp3dec_close_ring(mp3dec_map_info_t *map_info)
+{
+#if defined(__linux__) && defined(_GNU_SOURCE)
+    if (map_info->buffer && MAP_FAILED != map_info->buffer)
+        munmap((void *)map_info->buffer, map_info->size*2);
+#esle
+    if (map_info->buffer)
+    {
+        shmdt(map_info->buffer);
+        shmdt(map_info->buffer + map_info->size);
+    }
+#endif
+    map_info->buffer = 0;
+    map_info->size   = 0;
+}
+
+static int mp3dec_open_ring(mp3dec_map_info_t *map_info, size_t size)
+{
+    int memfd, page_size;
+#if defined(__linux__) && defined(_GNU_SOURCE)
+    int res;
+#endif
+    memset(map_info, 0, sizeof(*map_info));
+
+#ifdef _SC_PAGESIZE
+    page_size = sysconf( _SC_PAGESIZE );
+#else
+    page_size = getpagesize();
+#endif
+    map_info->size = (size + page_size - 1)/page_size*page_size;
+
+#if defined(__linux__) && defined(_GNU_SOURCE)
+    memfd = memfd_create("mp3_ring", 0);
+    if (memfd < 0)
+        return -1;
+
+retry_ftruncate:
+    res = ftruncate(memfd, size);
+    if (res && (errno == EAGAIN || errno == EINTR))
+        goto retry_ftruncate;
+    if (res)
+        goto error;
+
+retry_mmap:
+    map_info->buffer = (const uint8_t *)mmap(NULL, map_info->size*2, PROT_NONE, MAP_PRIVATE, -1, 0);
+    if (MAP_FAILED == map_info->buffer && (errno == EAGAIN || errno == EINTR))
+        goto retry_mmap;
+    if (MAP_FAILED == map_info->buffer)
+        goto error;
+retry_mmap2:
+    map_info->buffer = (const uint8_t *)mmap((void *)map_info->buffer, map_info->size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_SHARED, memfd, 0);
+    if (MAP_FAILED == map_info->buffer && (errno == EAGAIN || errno == EINTR))
+        goto retry_mmap2;
+    if (MAP_FAILED == map_info->buffer)
+        goto error;
+retry_mmap3:
+    map_info->buffer = (const uint8_t *)mmap((void *)map_info->buffer + map_info->size, map_info->size, PROT_READ | PROT_WRITE, MAP_FIXED | MAP_SHARED, memfd, 0);
+    if (MAP_FAILED == map_info->buffer && (errno == EAGAIN || errno == EINTR))
+        goto retry_mmap3;
+    if (MAP_FAILED == map_info->buffer)
+        goto error;
+
+    close(memfd);
+    return 0;
+error:
+    close(memfd);
+    mp3dec_close_ring(map_info);
+    return -1;
+#else
+    memfd = shmget(IPC_PRIVATE, map_info->size, IPC_CREAT | 0700);
+    if (memfd < 0)
+        return -1;
+retry_mmap:
+    map_info->buffer = (const uint8_t *)mmap(NULL, map_info->size*2, PROT_NONE, MAP_PRIVATE, -1, 0);
+    if (MAP_FAILED == map_info->buffer && (errno == EAGAIN || errno == EINTR))
+        goto retry_mmap;
+    if (MAP_FAILED == map_info->buffer)
+        goto error;
+    if (map_info->buffer != shmat(memfd, map_info->buffer, 0))
+        goto error;
+    if ((map_info->buffer + map_info->size) != shmat(memfd, map_info->buffer + map_info->size, 0))
+        goto error;
+    if (shmctl(memfd, IPC_RMID, NULL) < 0)
+        return -1;
+    return 0;
+error:
+    shmctl(memfd, IPC_RMID, NULL);
+    mp3dec_close_ring(map_info);
+    return -1;
+#endif
+}
 #elif defined(_WIN32)
 #include <windows.h>
 
@@ -475,7 +573,7 @@ static void mp3dec_close_file(mp3dec_map_info_t *map_info)
     if (map_info->buffer)
         UnmapViewOfFile(map_info->buffer);
     map_info->buffer = 0;
-    map_info->size = 0;
+    map_info->size   = 0;
 }
 
 static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
@@ -495,7 +593,7 @@ static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
     mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
     if (!mapping)
         goto error;
-    map_info->buffer = (const uint8_t*) MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, s.QuadPart);
+    map_info->buffer = (const uint8_t*)MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, s.QuadPart);
     CloseHandle(mapping);
     if (!map_info->buffer)
         goto error;
@@ -507,8 +605,41 @@ error:
     CloseHandle(file);
     return -1;
 }
+
+static void mp3dec_close_ring(mp3dec_map_info_t *map_info)
+{
+    if (map_info->buffer)
+    {
+        UnmapViewOfFile(map_info->buffer);
+        UnmapViewOfFile(map_info->buffer + map_info->size);
+    }
+    map_info->buffer = 0;
+    map_info->size   = 0;
+}
+
+static int mp3dec_open_ring(mp3dec_map_info_t *map_info, size_t size)
+{
+    map_info->size = size;
+    HANDLE hMap = CreateFileMapping(INVALID_HANDLE_VALUE, NULL, PAGE_READWRITE, 0, size, NULL);
+    if (INVALID_HANDLE_VALUE == hMap)
+        return -1;
+    map_info->buffer = (const uint8_t *)VirtualAlloc(0, size*2, MEM_RESERVE, PAGE_READWRITE);
+    if (!map_info->buffer)
+        goto error;
+    if (!MapViewOfFileEx(hMap, FILE_MAP_ALL_ACCESS, 0, 0, size, (LPVOID)map_info->buffer))
+        goto error;
+    if (!MapViewOfFileEx(hMap, FILE_MAP_ALL_ACCESS, 0, 0, size, (LPVOID)(map_info->buffer + size)))
+        goto error;
+    CloseHandle(hMap);
+    return 0;
+error:
+    mp3dec_close_ring(map_info);
+    CloseHandle(hMap);
+    return -1;
+}
 #else
 #include <stdio.h>
+#define MINIMP3_NO_RING
 
 static void mp3dec_close_file(mp3dec_map_info_t *map_info)
 {
@@ -586,6 +717,22 @@ int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int seek_method)
     ret = mp3dec_ex_open_buf(dec, dec->file.buffer, dec->file.size, seek_method);
     dec->is_file = 1;
     return ret;
+}
+
+int mp3dec_ex_open_cb(mp3dec_ex_t *dec, MP3D_READ_CB read_cb, void *read_user_data, MP3D_SEEK_CB seek_cb, void *seek_user_data, int seek_method)
+{
+    memset(dec, 0, sizeof(*dec));
+#ifndef MINIMP3_NO_RING
+    mp3dec_open_ring(&dec->file, MINIMP3_RING_SIZE);
+#endif
+    dec->seek_method = seek_method;
+    mp3dec_init(&dec->mp3d);
+    /* TODO */
+    (void)read_cb;
+    (void)read_user_data;
+    (void)seek_cb;
+    (void)seek_user_data;
+    return 0;
 }
 #else /* MINIMP3_NO_STDIO */
 void mp3dec_ex_close(mp3dec_ex_t *dec)
