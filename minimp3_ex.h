@@ -277,7 +277,13 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
     idx_frame = &dec->index.frames[dec->index.num_frames++];
     idx_frame->offset = offset;
     idx_frame->sample = dec->samples;
-    dec->samples += hdr_frame_samples(frame)*info->channels;
+    if (!dec->buffer_samples && dec->index.num_frames < 256)
+    {   /* for some cutted mp3 frames, bit-reservoir not filled and decoding can't be started from first frames */
+        /* try to decode up to 255 first frames till samples starts to decode */
+        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, frame, frame_size, dec->buffer, info);
+        dec->samples += dec->buffer_samples*info->channels;
+    } else
+        dec->samples += hdr_frame_samples(frame)*info->channels;
     return 0;
 }
 
@@ -290,6 +296,8 @@ int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, in
     mp3dec_init(&dec->mp3d);
     if (mp3dec_iterate_buf(dec->file.buffer, dec->file.size, mp3dec_load_index, dec) > 0 && !dec->index.frames && !dec->vbr_tag_found)
         return MP3D_E_MEMORY;
+    mp3dec_init(&dec->mp3d);
+    dec->buffer_samples = 0;
     return 0;
 }
 
@@ -335,6 +343,7 @@ seek_zero:
     if (!dec->index.frames && dec->vbr_tag_found)
     {   /* no index created yet (vbr tag used to calculate track length) */
         dec->samples = 0;
+        dec->buffer_samples = 0;
         if (mp3dec_iterate_buf(dec->file.buffer, dec->file.size, mp3dec_load_index, dec) > 0 && !dec->index.frames)
             return MP3D_E_MEMORY;
     }
@@ -368,6 +377,12 @@ seek_zero:
     }
     dec->offset = dec->index.frames[i].offset;
     dec->to_skip = position - dec->index.frames[i].sample;
+    while ((i + 1) < dec->index.num_frames && !dec->index.frames[i].sample && !dec->index.frames[i + 1].sample)
+    {   /* skip not decodable first frames */
+        const uint8_t *hdr = dec->file.buffer + dec->index.frames[i].offset;
+        dec->to_skip += hdr_frame_samples(hdr)*dec->info.channels;
+        i++;
+    }
 do_exit:
     dec->buffer_samples  = 0;
     dec->buffer_consumed = 0;

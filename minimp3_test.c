@@ -7,6 +7,7 @@
 #include <stdio.h>
 #include <math.h>
 #include <string.h>
+#include <time.h>
 #if defined(_MSC_VER)
     #define strcasecmp(str1, str2) _strnicmp(str1, str2, strlen(str2))
 #else
@@ -121,7 +122,8 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         info.channels = dec.info.channels;
         if (position < 0)
         {
-            position = (uint64_t)info.samples*rand()/RAND_MAX;
+            srand(time(0));
+            position = info.samples ? (uint64_t)(info.samples - 1)*rand()/RAND_MAX : 0;
             printf("info: seek to %d/%d\n", position, (int)info.samples);
         }
         if (position)
