@@ -95,13 +95,14 @@ static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_si
     return 0;
 }
 
-static void decode_file(const char *input_file_name, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out, const int mode)
+static void decode_file(const char *input_file_name, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out, const int mode, int position)
 {
     mp3dec_t mp3d;
     int i, res = -1, data_bytes, total_samples = 0, maxdiff = 0;
     double MSE = 0.0, psnr;
 
     mp3dec_file_info_t info;
+    memset(&info, 0, sizeof(info));
     if (MODE_LOAD == mode)
     {
         res = mp3dec_load(&mp3d, input_file_name, &info, 0, 0);
@@ -109,7 +110,6 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     {
         frames_iterate_data d = { &mp3d, &info, 0 };
         mp3dec_init(&mp3d);
-        memset(&info, 0, sizeof(info));
         res = mp3dec_iterate(input_file_name, frames_iterate_cb, &d);
     } else if (MODE_STREAM == mode)
     {
@@ -117,7 +117,22 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         res = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE);
         info.samples = dec.samples;
         info.buffer  = malloc(dec.samples*sizeof(int16_t));
-        mp3dec_ex_read(&dec, info.buffer, dec.samples);
+        info.hz      = dec.info.hz;
+        info.channels = dec.info.channels;
+        if (position < 0)
+        {
+            position = (uint64_t)info.samples*rand()/RAND_MAX;
+            printf("info: seek to %d/%d\n", position, (int)info.samples);
+        }
+        if (position)
+        {
+            info.samples -= MINIMP3_MIN(info.samples, (size_t)position);
+            int skip_ref = MINIMP3_MIN((size_t)ref_size, position*sizeof(int16_t));
+            buf_ref  += skip_ref;
+            ref_size -= skip_ref;
+            mp3dec_ex_seek(&dec, position);
+        }
+        mp3dec_ex_read(&dec, info.buffer, info.samples);
     } else
     {
         printf("error: unknown mode");
@@ -206,7 +221,7 @@ int main2(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
-    int wave_out = 0, mode = 0, i, ref_size;
+    int wave_out = 0, mode = 0, position = 0, i, ref_size;
     for(i = 1; i < argc; i++)
     {
         if (argv[i][0] != '-')
@@ -214,6 +229,7 @@ int main(int argc, char *argv[])
         switch (argv[i][1])
         {
         case 'm': i++; if (i < argc) mode = atoi(argv[i]); break;
+        case 's': i++; if (i < argc) position = atoi(argv[i]); break;
         default:
             printf("error: unrecognized option\n");
             return 1;
@@ -245,7 +261,7 @@ int main(int argc, char *argv[])
         printf("error: no file names given\n");
         return 1;
     }
-    decode_file(input_file_name, buf_ref, ref_size, file_out, wave_out, mode);
+    decode_file(input_file_name, buf_ref, ref_size, file_out, wave_out, mode, position);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     }
 #endif
