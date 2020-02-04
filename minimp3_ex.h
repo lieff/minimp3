@@ -91,6 +91,7 @@ int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int seek_method);
 #endif /*MINIMP3_EXT_H*/
 
 #ifdef MINIMP3_IMPLEMENTATION
+#include <limits.h>
 
 static void mp3dec_skip_id3(const uint8_t **pbuf, size_t *pbuf_size)
 {
@@ -142,7 +143,7 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     int samples;
     do
     {
-        samples = mp3dec_decode_frame(dec, buf, buf_size, pcm, &frame_info);
+        samples = mp3dec_decode_frame(dec, buf, MINIMP3_MIN(buf_size, (size_t)INT_MAX), pcm, &frame_info);
         buf      += frame_info.frame_bytes;
         buf_size -= frame_info.frame_bytes;
         if (samples)
@@ -172,7 +173,7 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
             allocated *= 2;
             info->buffer = (mp3d_sample_t*)realloc(info->buffer, allocated);
         }
-        samples = mp3dec_decode_frame(dec, buf, buf_size, info->buffer + info->samples, &frame_info);
+        samples = mp3dec_decode_frame(dec, buf, MINIMP3_MIN(buf_size, (size_t)INT_MAX), info->buffer + info->samples, &frame_info);
         frame_bytes = frame_info.frame_bytes;
         buf      += frame_bytes;
         buf_size -= frame_bytes;
@@ -280,7 +281,7 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
     if (!dec->buffer_samples && dec->index.num_frames < 256)
     {   /* for some cutted mp3 frames, bit-reservoir not filled and decoding can't be started from first frames */
         /* try to decode up to 255 first frames till samples starts to decode */
-        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, frame, buf_size, dec->buffer, info);
+        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, frame, MINIMP3_MIN(buf_size, (size_t)INT_MAX), dec->buffer, info);
         dec->samples += dec->buffer_samples*info->channels;
     } else
         dec->samples += hdr_frame_samples(frame)*info->channels;
@@ -409,7 +410,7 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
         size_t buf_size = dec->file.size - dec->offset;
         if (!buf_size)
             break;
-        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, dec_buf, buf_size, dec->buffer, &frame_info);
+        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, dec_buf, MINIMP3_MIN(buf_size, (size_t)INT_MAX), dec->buffer, &frame_info);
         dec->buffer_consumed = 0;
         if (dec->buffer_samples)
         {
