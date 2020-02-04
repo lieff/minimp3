@@ -368,12 +368,23 @@ seek_zero:
 #endif
         ;
         i -= MINIMP3_MIN(i, (size_t)skip_frames);
-        while (i && to_fill_bytes)
-        {   /* make sure bit-reservoir is filled when we start decoding */
-            const uint8_t *hdr = dec->file.buffer + dec->index.frames[i - 1].offset;
-            int frame_size = hdr_frame_bytes(hdr, dec->free_format_bytes) + hdr_padding(hdr) - HDR_SIZE; /* TODO: take sideinfo into account */
-            to_fill_bytes -= MINIMP3_MIN(to_fill_bytes, frame_size);
-            i--;
+        if (3 == dec->info.layer)
+        {
+            while (i && to_fill_bytes)
+            {   /* make sure bit-reservoir is filled when we start decoding */
+                bs_t bs[1];
+                L3_gr_info_t gr_info[4];
+                const uint8_t *hdr = dec->file.buffer + dec->index.frames[i - 1].offset;
+                int frame_bytes, frame_size = hdr_frame_bytes(hdr, dec->free_format_bytes) + hdr_padding(hdr);
+                bs_init(bs, hdr + HDR_SIZE, frame_size - HDR_SIZE);
+                if (HDR_IS_CRC(hdr))
+                    get_bits(bs, 16);
+                i--;
+                if (L3_read_side_info(bs, gr_info, hdr) < 0)
+                    break; /* frame not decodable, we can start from here */
+                frame_bytes = (bs->limit - bs->pos)/8;
+                to_fill_bytes -= MINIMP3_MIN(to_fill_bytes, frame_bytes);
+            }
         }
     }
     dec->offset = dec->index.frames[i].offset;
