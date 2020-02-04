@@ -71,8 +71,9 @@ typedef struct
     size_t allocated;
 } frames_iterate_data;
 
-static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t offset, mp3dec_frame_info_t *info)
+static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t buf_size, size_t offset, mp3dec_frame_info_t *info)
 {
+    (void)buf_size;
     (void)offset;
     (void)free_format_bytes;
     frames_iterate_data *d = user_data;

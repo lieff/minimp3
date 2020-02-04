@@ -61,7 +61,7 @@ typedef struct
     int buffer_samples, buffer_consumed, to_skip;
 } mp3dec_ex_t;
 
-typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t offset, mp3dec_frame_info_t *info);
+typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t buf_size, size_t offset, mp3dec_frame_info_t *info);
 typedef int (*MP3D_PROGRESS_CB)(void *user_data, size_t file_size, size_t offset, mp3dec_frame_info_t *info);
 
 #ifdef __cplusplus
@@ -229,7 +229,7 @@ size_t mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB c
         frames++;
         if (callback)
         {
-            if (callback(user_data, hdr, frame_size, free_format_bytes, hdr - orig_buf, &frame_info))
+            if (callback(user_data, hdr, frame_size, free_format_bytes, buf_size, hdr - orig_buf, &frame_info))
                 break;
         }
         buf      += frame_size;
@@ -238,7 +238,7 @@ size_t mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB c
     return frames;
 }
 
-static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t offset, mp3dec_frame_info_t *info)
+static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t buf_size, size_t offset, mp3dec_frame_info_t *info)
 {
     static const char g_xing_tag[4] = { 'X', 'i', 'n', 'g' };
     static const char g_info_tag[4] = { 'I', 'n', 'f', 'o' };
@@ -280,7 +280,7 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
     if (!dec->buffer_samples && dec->index.num_frames < 256)
     {   /* for some cutted mp3 frames, bit-reservoir not filled and decoding can't be started from first frames */
         /* try to decode up to 255 first frames till samples starts to decode */
-        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, frame, frame_size, dec->buffer, info);
+        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, frame, buf_size, dec->buffer, info);
         dec->samples += dec->buffer_samples*info->channels;
     } else
         dec->samples += hdr_frame_samples(frame)*info->channels;
@@ -370,7 +370,7 @@ seek_zero:
         while (i && to_fill_bytes)
         {   /* make sure bit-reservoir is filled when we start decoding */
             const uint8_t *hdr = dec->file.buffer + dec->index.frames[i - 1].offset;
-            int frame_size = hdr_frame_bytes(hdr, dec->free_format_bytes) + hdr_padding(hdr);
+            int frame_size = hdr_frame_bytes(hdr, dec->free_format_bytes) + hdr_padding(hdr) - HDR_SIZE; /* TODO: take sideinfo into account */
             to_fill_bytes -= MINIMP3_MIN(to_fill_bytes, frame_size);
             i--;
         }
