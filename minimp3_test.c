@@ -116,6 +116,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     } else if (MODE_STREAM == mode)
     {
         mp3dec_ex_t dec;
+        size_t readed;
         res = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE);
         info.samples = dec.samples;
         info.buffer  = malloc(dec.samples*sizeof(int16_t));
@@ -124,7 +125,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         if (position < 0)
         {
             srand(time(0));
-            position = info.samples ? (uint64_t)(info.samples - 1)*rand()/RAND_MAX : 0;
+            position = info.samples > 150 ? (uint64_t)(info.samples - 150)*rand()/RAND_MAX : 0;
             printf("info: seek to %d/%d\n", position, (int)info.samples);
         }
         if (position)
@@ -135,18 +136,23 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             ref_size -= skip_ref;
             mp3dec_ex_seek(&dec, position);
         }
-        mp3dec_ex_read(&dec, info.buffer, info.samples);
+        readed = mp3dec_ex_read(&dec, info.buffer, info.samples);
+        if (readed != info.samples)
+        {
+            printf("error: mp3dec_ex_read() readed less than expected\n");
+            exit(1);
+        }
         mp3dec_ex_close(&dec);
     } else
     {
-        printf("error: unknown mode");
+        printf("error: unknown mode\n");
         exit(1);
     }
     if (res)
     {
         if (ref_size)
         {
-            printf("error: file not found or read error");
+            printf("error: file not found or read error\n");
             exit(1);
         }
     }
