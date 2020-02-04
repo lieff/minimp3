@@ -50,7 +50,7 @@ typedef struct
     mp3dec_t mp3d;
     mp3dec_map_info_t file;
     mp3dec_index_t index;
-    uint64_t offset, samples, start_offset;
+    uint64_t offset, samples, start_offset, end_offset;
     mp3dec_frame_info_t info;
     mp3d_sample_t buffer[MINIMP3_MAX_SAMPLES_PER_FRAME];
 #ifndef MINIMP3_NO_STDIO
@@ -250,6 +250,7 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
         int i;
         dec->info = *info;
         dec->start_offset = offset;
+        dec->end_offset   = offset + buf_size;
         dec->free_format_bytes = free_format_bytes; /* should not change */
         for (i = 5; i < frame_size - 12; i++)
         {
@@ -404,6 +405,7 @@ do_exit:
 
 size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
 {
+    uint64_t end_offset = dec->end_offset ? dec->end_offset : dec->file.size;
     size_t samples_requested = samples;
     mp3dec_frame_info_t frame_info;
     memset(&frame_info, 0, sizeof(frame_info));
@@ -418,10 +420,10 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
     while (samples)
     {
         const uint8_t *dec_buf = dec->file.buffer + dec->offset;
-        size_t buf_size = dec->file.size - dec->offset;
+        uint64_t buf_size = end_offset - dec->offset;
         if (!buf_size)
             break;
-        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, dec_buf, MINIMP3_MIN(buf_size, (size_t)INT_MAX), dec->buffer, &frame_info);
+        dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, dec_buf, MINIMP3_MIN(buf_size, (uint64_t)INT_MAX), dec->buffer, &frame_info);
         dec->buffer_consumed = 0;
         if (dec->buffer_samples)
         {
