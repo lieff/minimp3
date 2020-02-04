@@ -19,6 +19,8 @@ scripts/test_mode.sh 2 -1
 echo testing coverage x86 w sse...
 gcc -coverage -O0 -m32 -std=c89 -msse2 -DMINIMP3_TEST -DMINIMP3_NO_WAV -o minimp3 minimp3_test.c -lm
 scripts/test.sh
+scripts/test_mode.sh 1 0
+scripts/test_mode.sh 2 -1
 set +e
 ./minimp3
 ./minimp3 do_not_exist
