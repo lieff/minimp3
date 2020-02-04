@@ -136,6 +136,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             mp3dec_ex_seek(&dec, position);
         }
         mp3dec_ex_read(&dec, info.buffer, info.samples);
+        mp3dec_ex_close(&dec);
     } else
     {
         printf("error: unknown mode");
