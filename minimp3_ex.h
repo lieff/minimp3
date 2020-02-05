@@ -127,10 +127,52 @@ static void mp3dec_skip_id3(const uint8_t **pbuf, size_t *pbuf_size)
     *pbuf_size = buf_size;
 }
 
+static int mp3dec_check_vbrtag(const uint8_t *frame, int frame_size, uint32_t *frames, int *delay, int *padding)
+{
+    int i;
+    static const char g_xing_tag[4] = { 'X', 'i', 'n', 'g' };
+    static const char g_info_tag[4] = { 'I', 'n', 'f', 'o' };
+#define FRAMES_FLAG     1
+#define BYTES_FLAG      2
+#define TOC_FLAG        4
+#define VBR_SCALE_FLAG  8
+    /* TODO: skip side-info?
+    /  Side info offsets afrer header:
+    /                Mono  Stereo
+    /  MPEG1          17     32
+    /  MPEG2 & 2.5     9     17*/
+    for (i = 5; i < frame_size - 36; i++)
+    {
+        const uint8_t *tag = frame + i;
+        if (memcmp(g_xing_tag, tag, 4) && memcmp(g_info_tag, tag, 4))
+            continue;
+        int flags = tag[7];
+        if (!((flags & FRAMES_FLAG)))
+            break;
+        tag += 8;
+        (*frames) = (uint32_t)(tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | tag[3];
+        tag += 4;
+        if (flags & BYTES_FLAG)
+            tag += 4;
+        if (flags & TOC_FLAG)
+            tag += 100;
+        if (flags & VBR_SCALE_FLAG)
+            tag += 4;
+        tag += 21;
+        if (tag - frame + 2 >= frame_size)
+            break;
+        *delay   = ((tag[0] << 4) | (tag[1] >> 4)) + (528 + 1);
+        *padding = (((tag[1] & 0xF) << 8) | tag[2]) - (528 + 1);
+        return 1;
+    }
+    return 0;
+}
+
 void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
 {
+    uint64_t detected_samples = 0;
     size_t orig_buf_size = buf_size;
-    mp3d_sample_t pcm[MINIMP3_MAX_SAMPLES_PER_FRAME];
+    int to_skip = 0;
     mp3dec_frame_info_t frame_info;
     memset(info, 0, sizeof(*info));
     memset(&frame_info, 0, sizeof(frame_info));
@@ -138,33 +180,57 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
     mp3dec_skip_id3(&buf, &buf_size);
     if (!buf_size)
         return;
-    /* try to make allocation size assumption by first frame */
+    /* try to make allocation size assumption by first frame or vbr tag */
     mp3dec_init(dec);
     int samples;
     do
     {
-        samples = mp3dec_decode_frame(dec, buf, MINIMP3_MIN(buf_size, (size_t)INT_MAX), pcm, &frame_info);
-        buf      += frame_info.frame_bytes;
-        buf_size -= frame_info.frame_bytes;
-        if (samples)
-            break;
-    } while (frame_info.frame_bytes);
-    if (!samples)
-        return;
-    samples *= frame_info.channels;
-    size_t allocated = (buf_size/frame_info.frame_bytes)*samples*sizeof(mp3d_sample_t) + MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t);
+        uint32_t frames;
+        int delay, padding, free_format_bytes = 0, frame_size = 0;
+        int i = mp3d_find_frame(buf, buf_size, &free_format_bytes, &frame_size);
+        buf      += i;
+        buf_size -= i;
+        if (i && !frame_size)
+            continue;
+        if (!frame_size)
+            return;
+        const uint8_t *hdr = buf;
+        frame_info.channels = HDR_IS_MONO(hdr) ? 1 : 2;
+        frame_info.hz = hdr_sample_rate_hz(hdr);
+        frame_info.layer = 4 - HDR_GET_LAYER(hdr);
+        frame_info.bitrate_kbps = hdr_bitrate_kbps(hdr);
+        frame_info.frame_bytes = frame_size;
+        samples = hdr_frame_samples(hdr)*frame_info.channels;
+        if (mp3dec_check_vbrtag(hdr, frame_size, &frames, &delay, &padding))
+        {
+            padding *= frame_info.channels;
+            to_skip = delay*frame_info.channels;
+            detected_samples = samples*(uint64_t)frames;
+            if (detected_samples >= (uint64_t)to_skip)
+                detected_samples -= to_skip;
+            if (padding > 0 && detected_samples >= (uint64_t)padding)
+                detected_samples -= padding;
+            if (!detected_samples)
+                return;
+            buf      += frame_size;
+            buf_size -= frame_size;
+        }
+        break;
+    } while(1);
+    size_t allocated = MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t);
+    if (detected_samples)
+        allocated += detected_samples*sizeof(mp3d_sample_t);
+    else
+        allocated += (buf_size/frame_info.frame_bytes)*samples*sizeof(mp3d_sample_t);
     info->buffer = (mp3d_sample_t*)malloc(allocated);
     if (!info->buffer)
         return;
-    info->samples = samples;
-    memcpy(info->buffer, pcm, info->samples*sizeof(mp3d_sample_t));
     /* save info */
     info->channels = frame_info.channels;
     info->hz       = frame_info.hz;
     info->layer    = frame_info.layer;
-    size_t avg_bitrate_kbps = frame_info.bitrate_kbps;
-    size_t frames = 1;
-    /* decode rest frames */
+    /* decode all frames */
+    size_t avg_bitrate_kbps = 0, frames = 0;
     int frame_bytes;
     do
     {
@@ -187,17 +253,28 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
 #else
                 break;
 #endif
-            info->samples += samples*frame_info.channels;
+            samples *= frame_info.channels;
+            if (to_skip)
+            {
+                size_t skip = MINIMP3_MIN(samples, to_skip);
+                to_skip -= skip;
+                samples -= skip;
+                memmove(info->buffer, info->buffer + skip, samples);
+            }
+            info->samples += samples;
             avg_bitrate_kbps += frame_info.bitrate_kbps;
             frames++;
             if (progress_cb)
                 progress_cb(user_data, orig_buf_size, orig_buf_size - buf_size, &frame_info);
         }
     } while (frame_bytes);
+    if (detected_samples)
+        info->samples = detected_samples;
     /* reallocate to normal buffer size */
     if (allocated != info->samples*sizeof(mp3d_sample_t))
         info->buffer = (mp3d_sample_t*)realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
-    info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
+    if (frames)
+        info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
 }
 
 size_t mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data)
@@ -241,61 +318,29 @@ size_t mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB c
 
 static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t buf_size, size_t offset, mp3dec_frame_info_t *info)
 {
-    static const char g_xing_tag[4] = { 'X', 'i', 'n', 'g' };
-    static const char g_info_tag[4] = { 'I', 'n', 'f', 'o' };
     mp3dec_frame_t *idx_frame;
     mp3dec_ex_t *dec = (mp3dec_ex_t *)user_data;
     if (!dec->index.frames && !dec->vbr_tag_found)
     {   /* detect VBR tag and try to avoid full scan */
-        int i;
+        uint32_t frames;
+        int delay, padding;
         dec->info = *info;
         dec->start_offset = dec->offset = offset;
         dec->end_offset   = offset + buf_size;
         dec->free_format_bytes = free_format_bytes; /* should not change */
-        /* TODO: skip side-info?
-        /  Side info offsets afrer header:
-        /                Mono  Stereo
-        /  MPEG1          17     32
-        /  MPEG2 & 2.5     9     17*/
-        for (i = 5; i < frame_size - 36; i++)
+        if (mp3dec_check_vbrtag(frame, frame_size, &frames, &delay, &padding))
         {
-            const uint8_t *tag = frame + i;
-            if (!memcmp(g_xing_tag, tag, 4) || !memcmp(g_info_tag, tag, 4))
-            {
-#define FRAMES_FLAG     1
-#define BYTES_FLAG      2
-#define TOC_FLAG        4
-#define VBR_SCALE_FLAG  8
-                int flags = tag[7], delay, padding;
-                uint32_t frames;
-                if (!((flags & FRAMES_FLAG)))
-                    break;
-                tag += 8;
-                frames = (uint32_t)(tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | tag[3];
-                tag += 4;
-                if (flags & BYTES_FLAG)
-                    tag += 4;
-                if (flags & TOC_FLAG)
-                    tag += 100;
-                if (flags & VBR_SCALE_FLAG)
-                    tag += 4;
-                tag += 21;
-                if (tag - frame + 2 >= frame_size)
-                    break;
-                delay   = (((tag[0] << 4) | (tag[1] >> 4)) + (528 + 1))*info->channels;
-                padding = ((((tag[1] & 0xF) << 8) | tag[2]) - (528 + 1))*info->channels;
-
-                dec->start_delay = dec->to_skip = delay;
-                dec->samples = hdr_frame_samples(frame)*info->channels*(uint64_t)frames;
-                if (dec->samples >= (uint64_t)dec->start_delay)
-                    dec->samples -= dec->start_delay;
-                if (padding > 0 && dec->samples >= (uint64_t)padding)
-                    dec->samples -= padding;
-                dec->detected_samples = dec->samples;
-                dec->start_offset = dec->offset = offset + frame_size;
-                dec->vbr_tag_found = 1;
-                return 1;
-            }
+            padding *= info->channels;
+            dec->start_delay = dec->to_skip = delay*info->channels;
+            dec->samples = hdr_frame_samples(frame)*info->channels*(uint64_t)frames;
+            if (dec->samples >= (uint64_t)dec->start_delay)
+                dec->samples -= dec->start_delay;
+            if (padding > 0 && dec->samples >= (uint64_t)padding)
+                dec->samples -= padding;
+            dec->detected_samples = dec->samples;
+            dec->start_offset = dec->offset = offset + frame_size;
+            dec->vbr_tag_found = 1;
+            return 1;
         }
     }
     if (dec->index.num_frames + 1 > dec->index.capacity)

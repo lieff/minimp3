@@ -13,7 +13,7 @@ vectors/l3-sin1k0db.bit vectors/l3-test45.bit vectors/l3-test46.bit vectors/M2L3
 vectors/M2L3_bitrate_22_all.bit vectors/M2L3_bitrate_24_all.bit vectors/M2L3_compl24.bit vectors/M2L3_noise.bit \
 vectors/l3-nonstandard-id3v1.bit vectors/l3-nonstandard-id3v2.bit vectors/l1-fl1.bit vectors/l2-fl10.bit"
 if [ "$MODE" = "2" ]; then
-VECTORS+=" vectors/vbrtag/l3-nonstandard-sin1k0db_lame_tag.bit"
+VECTORS+=" vectors/l3-nonstandard-sin1k0db_lame_vbrtag.bit"
 fi
 
 set +e
