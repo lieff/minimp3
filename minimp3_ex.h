@@ -418,9 +418,9 @@ int mp3dec_ex_seek(mp3dec_ex_t *dec, uint64_t position)
     size_t i;
     if (MP3D_SEEK_TO_BYTE == dec->seek_method)
     {
-        dec->offset = position;
+        dec->offset = MINIMP3_MIN(position, dec->file.size);
         dec->cur_sample = 0;
-        return 0;
+        goto do_exit;
     }
     dec->cur_sample = position;
     position += dec->start_delay;
