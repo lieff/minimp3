@@ -129,43 +129,49 @@ static void mp3dec_skip_id3(const uint8_t **pbuf, size_t *pbuf_size)
 
 static int mp3dec_check_vbrtag(const uint8_t *frame, int frame_size, uint32_t *frames, int *delay, int *padding)
 {
-    int i;
     static const char g_xing_tag[4] = { 'X', 'i', 'n', 'g' };
     static const char g_info_tag[4] = { 'I', 'n', 'f', 'o' };
 #define FRAMES_FLAG     1
 #define BYTES_FLAG      2
 #define TOC_FLAG        4
 #define VBR_SCALE_FLAG  8
-    /* TODO: skip side-info?
-    /  Side info offsets afrer header:
+    /* Side info offsets afrer header:
     /                Mono  Stereo
     /  MPEG1          17     32
     /  MPEG2 & 2.5     9     17*/
-    for (i = 5; i < frame_size - 36; i++)
-    {
-        const uint8_t *tag = frame + i;
-        if (memcmp(g_xing_tag, tag, 4) && memcmp(g_info_tag, tag, 4))
-            continue;
-        int flags = tag[7];
-        if (!((flags & FRAMES_FLAG)))
-            break;
-        tag += 8;
-        (*frames) = (uint32_t)(tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | tag[3];
+    bs_t bs[1];
+    L3_gr_info_t gr_info[4];
+    bs_init(bs, frame + HDR_SIZE, frame_size - HDR_SIZE);
+    if (HDR_IS_CRC(frame))
+        get_bits(bs, 16);
+    if (L3_read_side_info(bs, gr_info, frame) < 0)
+        return 0; /* side info corrupted */
+
+    const uint8_t *tag = frame + HDR_SIZE + bs->pos/8;
+    if (memcmp(g_xing_tag, tag, 4) && memcmp(g_info_tag, tag, 4))
+        return 0;
+    int flags = tag[7];
+    if (!((flags & FRAMES_FLAG)))
+        return 0;
+    tag += 8;
+    *frames = (uint32_t)(tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | tag[3];
+    tag += 4;
+    if (flags & BYTES_FLAG)
         tag += 4;
-        if (flags & BYTES_FLAG)
-            tag += 4;
-        if (flags & TOC_FLAG)
-            tag += 100;
-        if (flags & VBR_SCALE_FLAG)
-            tag += 4;
+    if (flags & TOC_FLAG)
+        tag += 100;
+    if (flags & VBR_SCALE_FLAG)
+        tag += 4;
+    *delay = *padding = 0;
+    if (*tag)
+    {   /* extension, LAME, Lavc, etc. Should be the same structure. */
         tag += 21;
-        if (tag - frame + 2 >= frame_size)
-            break;
+        if (tag - frame + 14 >= frame_size)
+            return 0;
         *delay   = ((tag[0] << 4) | (tag[1] >> 4)) + (528 + 1);
         *padding = (((tag[1] & 0xF) << 8) | tag[2]) - (528 + 1);
-        return 1;
     }
-    return 0;
+    return 1;
 }
 
 void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
