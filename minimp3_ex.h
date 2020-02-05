@@ -50,7 +50,7 @@ typedef struct
     mp3dec_t mp3d;
     mp3dec_map_info_t file;
     mp3dec_index_t index;
-    uint64_t offset, samples, detected_samples, start_offset, end_offset;
+    uint64_t offset, samples, detected_samples, cur_sample, start_offset, end_offset;
     mp3dec_frame_info_t info;
     mp3d_sample_t buffer[MINIMP3_MAX_SAMPLES_PER_FRAME];
 #ifndef MINIMP3_NO_STDIO
@@ -274,8 +274,8 @@ void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_
                 progress_cb(user_data, orig_buf_size, orig_buf_size - buf_size, &frame_info);
         }
     } while (frame_bytes);
-    if (detected_samples)
-        info->samples = detected_samples;
+    if (detected_samples && info->samples > detected_samples)
+        info->samples = detected_samples; /* cut padding */
     /* reallocate to normal buffer size */
     if (allocated != info->samples*sizeof(mp3d_sample_t))
         info->buffer = (mp3d_sample_t*)realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
@@ -419,8 +419,10 @@ int mp3dec_ex_seek(mp3dec_ex_t *dec, uint64_t position)
     if (MP3D_SEEK_TO_BYTE == dec->seek_method)
     {
         dec->offset = position;
+        dec->cur_sample = 0;
         return 0;
     }
+    dec->cur_sample = position;
     position += dec->start_delay;
     if (0 == position)
     {   /* optimize seek to zero, no index needed */
@@ -499,9 +501,17 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
     size_t samples_requested = samples;
     mp3dec_frame_info_t frame_info;
     memset(&frame_info, 0, sizeof(frame_info));
+    if (dec->detected_samples && dec->cur_sample >= dec->detected_samples)
+        return 0; /* at end of stream */
     if (dec->buffer_consumed < dec->buffer_samples)
     {
         size_t to_copy = MINIMP3_MIN((size_t)(dec->buffer_samples - dec->buffer_consumed), samples);
+        if (dec->detected_samples)
+        {   /* count decoded samples to properly cut padding */
+            if (dec->cur_sample + to_copy >= dec->detected_samples)
+                to_copy = dec->detected_samples - dec->cur_sample;
+            dec->cur_sample += to_copy;
+        }
         memcpy(buf, dec->buffer + dec->buffer_consumed, to_copy*sizeof(mp3d_sample_t));
         buf += to_copy;
         dec->buffer_consumed += to_copy;
@@ -509,6 +519,8 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
     }
     while (samples)
     {
+        if (dec->detected_samples && dec->cur_sample >= dec->detected_samples)
+            break;
         const uint8_t *dec_buf = dec->file.buffer + dec->offset;
         uint64_t buf_size = end_offset - dec->offset;
         if (!buf_size)
@@ -525,6 +537,12 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
                 dec->to_skip -= skip;
             }
             size_t to_copy = MINIMP3_MIN((size_t)(dec->buffer_samples - dec->buffer_consumed), samples);
+            if (dec->detected_samples)
+            {   /* ^ handle padding */
+                if (dec->cur_sample + to_copy >= dec->detected_samples)
+                    to_copy = dec->detected_samples - dec->cur_sample;
+                dec->cur_sample += to_copy;
+            }
             memcpy(buf, dec->buffer + dec->buffer_consumed, to_copy*sizeof(mp3d_sample_t));
             buf += to_copy;
             dec->buffer_consumed += to_copy;

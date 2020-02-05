@@ -121,6 +121,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         info.samples = dec.samples;
         info.buffer  = malloc(dec.samples*sizeof(int16_t));
         info.hz      = dec.info.hz;
+        info.layer   = dec.info.layer;
         info.channels = dec.info.channels;
         if (position < 0)
         {
@@ -140,6 +141,12 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         if (readed != info.samples)
         {
             printf("error: mp3dec_ex_read() readed less than expected\n");
+            exit(1);
+        }
+        readed = mp3dec_ex_read(&dec, info.buffer, 1);
+        if (readed)
+        {
+            printf("error: mp3dec_ex_read() readed more than expected\n");
             exit(1);
         }
         mp3dec_ex_close(&dec);
@@ -172,7 +179,13 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         total_samples += info.samples;
         if (buf_ref)
         {
-            int max_samples = MINIMP3_MIN((size_t)ref_size/2, info.samples);
+            size_t ref_samples = ref_size/2;
+            if (ref_samples != info.samples && (ref_samples + 1152) != info.samples && (ref_samples + 2304) != info.samples && 3 == info.layer)
+            {   /* some standard vectors are for some reason a little shorter */
+                printf("error: reference and produced number of samples do not match (%d/%d)\n", (int)ref_samples, (int)info.samples);
+                exit(1);
+            }
+            int max_samples = MINIMP3_MIN(ref_samples, info.samples);
             for (i = 0; i < max_samples; i++)
             {
                 int MSEtemp = abs((int)buffer[i] - (int)(int16_t)read16le(&buf_ref[i*sizeof(int16_t)]));
@@ -195,7 +208,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     printf("rate=%d samples=%d max_diff=%d PSNR=%f\n", info.hz, total_samples, maxdiff, psnr);
     if (psnr < 96)
     {
-        printf("PSNR compliance failed\n");
+        printf("error: PSNR compliance failed\n");
         exit(1);
     }
 #endif
