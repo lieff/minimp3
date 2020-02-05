@@ -180,7 +180,8 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         if (buf_ref)
         {
             size_t ref_samples = ref_size/2;
-            if (ref_samples != info.samples && (ref_samples + 1152) != info.samples && (ref_samples + 2304) != info.samples && 3 == info.layer)
+            if (((ref_samples != info.samples && (ref_samples + 1152) != info.samples && (ref_samples + 2304) != info.samples && 2 != mode) ||
+                (ref_samples > info.samples) || (ref_samples + 2304) < info.samples) && 3 == info.layer)
             {   /* some standard vectors are for some reason a little shorter */
                 printf("error: reference and produced number of samples do not match (%d/%d)\n", (int)ref_samples, (int)info.samples);
                 exit(1);
