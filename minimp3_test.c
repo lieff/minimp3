@@ -101,6 +101,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
 {
     mp3dec_t mp3d;
     int i, res = -1, data_bytes, total_samples = 0, maxdiff = 0;
+    int no_std_vec = strstr(input_file_name, "nonstandard") || strstr(input_file_name, "ILL");
     double MSE = 0.0, psnr;
 
     mp3dec_file_info_t info;
@@ -180,8 +181,10 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         if (buf_ref)
         {
             size_t ref_samples = ref_size/2;
-            if (((ref_samples != info.samples && (ref_samples + 1152) != info.samples && (ref_samples + 2304) != info.samples && 2 != mode) ||
-                (ref_samples > info.samples) || (ref_samples + 2304) < info.samples) && 3 == info.layer)
+            int len_match = ref_samples == info.samples;
+            int relaxed_len_match = len_match || (ref_samples + 1152) == info.samples || (ref_samples + 2304) == info.samples;
+            int seek_len_match = (ref_samples <= info.samples) || (ref_samples + 2304) >= info.samples;
+            if ((((!relaxed_len_match && 2 != mode) || !seek_len_match) && 3 == info.layer && !no_std_vec) || (no_std_vec && !len_match))
             {   /* some standard vectors are for some reason a little shorter */
                 printf("error: reference and produced number of samples do not match (%d/%d)\n", (int)ref_samples, (int)info.samples);
                 exit(1);
