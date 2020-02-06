@@ -200,8 +200,9 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         }
         if (file_out)
             fwrite(buffer, info.samples, sizeof(int16_t), file_out);
-        free(buffer);
     }
+    if (buffer)
+        free(buffer);
 
 #ifndef LIBFUZZER
     MSE /= total_samples ? total_samples : 1;
