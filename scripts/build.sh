@@ -21,6 +21,7 @@ gcc -coverage -O0 -m32 -std=c89 -msse2 -DMINIMP3_TEST -DMINIMP3_NO_WAV -o minimp
 scripts/test.sh
 scripts/test_mode.sh 1 0
 scripts/test_mode.sh 2 -1
+scripts/test_mode.sh 3 -1
 set +e
 ./minimp3
 ./minimp3 do_not_exist
@@ -38,6 +39,9 @@ scripts/test.sh
 echo testing x64 with float output...
 gcc $CFLAGS -DMINIMP3_FLOAT_OUTPUT -o minimp3 minimp3_test.c -lm
 scripts/test.sh
+scripts/test_mode.sh 1 0
+scripts/test_mode.sh 2 -1
+scripts/test_mode.sh 3 -1
 
 echo testing arm w/o neon...
 arm-none-eabi-gcc $CFLAGS -mthumb -mcpu=arm9e -o minimp3_arm minimp3_test.c --specs=rdimon.specs -lm

@@ -17,6 +17,7 @@
 #define MODE_LOAD    0
 #define MODE_ITERATE 1
 #define MODE_STREAM  2
+#define MODE_STREAM_CB 3
 
 static int16_t read16le(const void *p)
 {
@@ -64,6 +65,16 @@ static unsigned char *preload(FILE *file, int *data_size)
     return data;
 }
 
+static size_t read_cb(void *buf, size_t size, void *user_data)
+{
+    return fread(buf, 1, size, (FILE*)user_data);
+}
+
+static int seek_cb(uint64_t position, void *user_data)
+{
+    return fseek((FILE*)user_data, position, SEEK_SET);
+}
+
 typedef struct
 {
     mp3dec_t *mp3d;
@@ -71,7 +82,7 @@ typedef struct
     size_t allocated;
 } frames_iterate_data;
 
-static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t buf_size, size_t offset, mp3dec_frame_info_t *info)
+static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t buf_size, uint64_t offset, mp3dec_frame_info_t *info)
 {
     (void)buf_size;
     (void)offset;
@@ -113,20 +124,42 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     {
         frames_iterate_data d = { &mp3d, &info, 0 };
         mp3dec_init(&mp3d);
-        res = mp3dec_iterate(input_file_name, frames_iterate_cb, &d);
-    } else if (MODE_STREAM == mode)
+        res = mp3dec_iterate(input_file_name, frames_iterate_cb, &d) > 0 ? 0 : -1;
+    } else if (MODE_STREAM == mode || MODE_STREAM_CB == mode)
     {
         mp3dec_ex_t dec;
+        mp3dec_io_t io;
         size_t readed;
-        res = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE);
+        if (MODE_STREAM_CB == mode)
+        {
+            FILE *file = fopen(input_file_name, "rb");
+            io.read = read_cb;
+            io.seek = seek_cb;
+            io.read_data = io.seek_data = file;
+            res = file ? mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE) : -1;
+        } else
+        {
+            res = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE);
+        }
+        if (res)
+        {
+            printf("error: mp3dec_ex_open() failed\n");
+            exit(1);
+        }
         info.samples = dec.samples;
-        info.buffer  = malloc(dec.samples*sizeof(int16_t));
+        info.buffer  = malloc(dec.samples*sizeof(mp3d_sample_t));
         info.hz      = dec.info.hz;
         info.layer   = dec.info.layer;
         info.channels = dec.info.channels;
         if (position < 0)
         {
+#ifdef _WIN32
+            LARGE_INTEGER t;
+            QueryPerformanceCounter(&t);
+            srand(t.QuadPart);
+#else
             srand(time(0));
+#endif
             position = info.samples > 150 ? (uint64_t)(info.samples - 150)*rand()/RAND_MAX : 0;
             printf("info: seek to %d/%d\n", position, (int)info.samples);
         }
@@ -151,6 +184,8 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             exit(1);
         }
         mp3dec_ex_close(&dec);
+        if (MODE_STREAM_CB == mode)
+            fclose((FILE*)io.read_data);
     } else
     {
         printf("error: unknown mode\n");
@@ -175,32 +210,29 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     if (wave_out && file_out)
         fwrite(wav_header(0, 0, 0, 0), 1, 44, file_out);
 #endif
-    if (info.samples)
+    total_samples += info.samples;
+    if (buf_ref)
     {
-        total_samples += info.samples;
-        if (buf_ref)
-        {
-            size_t ref_samples = ref_size/2;
-            int len_match = ref_samples == info.samples;
-            int relaxed_len_match = len_match || (ref_samples + 1152) == info.samples || (ref_samples + 2304) == info.samples;
-            int seek_len_match = (ref_samples <= info.samples) || (ref_samples + 2304) >= info.samples;
-            if ((((!relaxed_len_match && 2 != mode) || !seek_len_match) && 3 == info.layer && !no_std_vec) || (no_std_vec && !len_match))
-            {   /* some standard vectors are for some reason a little shorter */
-                printf("error: reference and produced number of samples do not match (%d/%d)\n", (int)ref_samples, (int)info.samples);
-                exit(1);
-            }
-            int max_samples = MINIMP3_MIN(ref_samples, info.samples);
-            for (i = 0; i < max_samples; i++)
-            {
-                int MSEtemp = abs((int)buffer[i] - (int)(int16_t)read16le(&buf_ref[i*sizeof(int16_t)]));
-                if (MSEtemp > maxdiff)
-                    maxdiff = MSEtemp;
-                MSE += (float)MSEtemp*(float)MSEtemp;
-            }
+        size_t ref_samples = ref_size/2;
+        int len_match = ref_samples == info.samples;
+        int relaxed_len_match = len_match || (ref_samples + 1152) == info.samples || (ref_samples + 2304) == info.samples;
+        int seek_len_match = (ref_samples <= info.samples) || (ref_samples + 2304) >= info.samples;
+        if ((((!relaxed_len_match && 2 != mode && 3 != mode) || !seek_len_match) && 3 == info.layer && !no_std_vec) || (no_std_vec && !len_match))
+        {   /* some standard vectors are for some reason a little shorter */
+            printf("error: reference and produced number of samples do not match (%d/%d)\n", (int)ref_samples, (int)info.samples);
+            exit(1);
         }
-        if (file_out)
-            fwrite(buffer, info.samples, sizeof(int16_t), file_out);
+        int max_samples = MINIMP3_MIN(ref_samples, info.samples);
+        for (i = 0; i < max_samples; i++)
+        {
+            int MSEtemp = abs((int)buffer[i] - (int)(int16_t)read16le(&buf_ref[i*sizeof(int16_t)]));
+            if (MSEtemp > maxdiff)
+                maxdiff = MSEtemp;
+            MSE += (float)MSEtemp*(float)MSEtemp;
+        }
     }
+    if (file_out)
+        fwrite(buffer, info.samples, sizeof(int16_t), file_out);
     if (buffer)
         free(buffer);
 
