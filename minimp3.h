@@ -1779,60 +1779,56 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 #ifdef MINIMP3_FLOAT_OUTPUT
 void mp3dec_f32_to_s16(const float *in, int16_t *out, int num_samples)
 {
-    if(num_samples > 0)
-    {
-        int i = 0;
+    int i = 0;
 #if HAVE_SIMD
-        int aligned_count = num_samples & ~7;
-
-        for(;i < aligned_count;i+=8)
-        {
-            static const f4 g_scale = { 32768.0f, 32768.0f, 32768.0f, 32768.0f };
-            f4 a = VMUL(VLD(&in[i  ]), g_scale);
-            f4 b = VMUL(VLD(&in[i+4]), g_scale);
+    int aligned_count = num_samples & ~7;
+    for(; i < aligned_count; i += 8)
+    {
+        static const f4 g_scale = { 32768.0f, 32768.0f, 32768.0f, 32768.0f };
+        f4 a = VMUL(VLD(&in[i  ]), g_scale);
+        f4 b = VMUL(VLD(&in[i+4]), g_scale);
 #if HAVE_SSE
-            static const f4 g_max = { 32767.0f, 32767.0f, 32767.0f, 32767.0f };
-            static const f4 g_min = { -32768.0f, -32768.0f, -32768.0f, -32768.0f };
-            __m128i pcm8 = _mm_packs_epi32(_mm_cvtps_epi32(_mm_max_ps(_mm_min_ps(a, g_max), g_min)),
-                                           _mm_cvtps_epi32(_mm_max_ps(_mm_min_ps(b, g_max), g_min)));
-            out[i  ] = _mm_extract_epi16(pcm8, 0);
-            out[i+1] = _mm_extract_epi16(pcm8, 1);
-            out[i+2] = _mm_extract_epi16(pcm8, 2);
-            out[i+3] = _mm_extract_epi16(pcm8, 3);
-            out[i+4] = _mm_extract_epi16(pcm8, 4);
-            out[i+5] = _mm_extract_epi16(pcm8, 5);
-            out[i+6] = _mm_extract_epi16(pcm8, 6);
-            out[i+7] = _mm_extract_epi16(pcm8, 7);
+        static const f4 g_max = { 32767.0f, 32767.0f, 32767.0f, 32767.0f };
+        static const f4 g_min = { -32768.0f, -32768.0f, -32768.0f, -32768.0f };
+        __m128i pcm8 = _mm_packs_epi32(_mm_cvtps_epi32(_mm_max_ps(_mm_min_ps(a, g_max), g_min)),
+                                       _mm_cvtps_epi32(_mm_max_ps(_mm_min_ps(b, g_max), g_min)));
+        out[i  ] = _mm_extract_epi16(pcm8, 0);
+        out[i+1] = _mm_extract_epi16(pcm8, 1);
+        out[i+2] = _mm_extract_epi16(pcm8, 2);
+        out[i+3] = _mm_extract_epi16(pcm8, 3);
+        out[i+4] = _mm_extract_epi16(pcm8, 4);
+        out[i+5] = _mm_extract_epi16(pcm8, 5);
+        out[i+6] = _mm_extract_epi16(pcm8, 6);
+        out[i+7] = _mm_extract_epi16(pcm8, 7);
 #else /* HAVE_SSE */
-            int16x4_t pcma, pcmb;
-            a = VADD(a, VSET(0.5f));
-            b = VADD(b, VSET(0.5f));
-            pcma = vqmovn_s32(vqaddq_s32(vcvtq_s32_f32(a), vreinterpretq_s32_u32(vcltq_f32(a, VSET(0)))));
-            pcmb = vqmovn_s32(vqaddq_s32(vcvtq_s32_f32(b), vreinterpretq_s32_u32(vcltq_f32(b, VSET(0)))));
-            vst1_lane_s16(out+i  , pcma, 0);
-            vst1_lane_s16(out+i+1, pcma, 1);
-            vst1_lane_s16(out+i+2, pcma, 2);
-            vst1_lane_s16(out+i+3, pcma, 3);
-            vst1_lane_s16(out+i+4, pcmb, 0);
-            vst1_lane_s16(out+i+5, pcmb, 1);
-            vst1_lane_s16(out+i+6, pcmb, 2);
-            vst1_lane_s16(out+i+7, pcmb, 3);
+        int16x4_t pcma, pcmb;
+        a = VADD(a, VSET(0.5f));
+        b = VADD(b, VSET(0.5f));
+        pcma = vqmovn_s32(vqaddq_s32(vcvtq_s32_f32(a), vreinterpretq_s32_u32(vcltq_f32(a, VSET(0)))));
+        pcmb = vqmovn_s32(vqaddq_s32(vcvtq_s32_f32(b), vreinterpretq_s32_u32(vcltq_f32(b, VSET(0)))));
+        vst1_lane_s16(out+i  , pcma, 0);
+        vst1_lane_s16(out+i+1, pcma, 1);
+        vst1_lane_s16(out+i+2, pcma, 2);
+        vst1_lane_s16(out+i+3, pcma, 3);
+        vst1_lane_s16(out+i+4, pcmb, 0);
+        vst1_lane_s16(out+i+5, pcmb, 1);
+        vst1_lane_s16(out+i+6, pcmb, 2);
+        vst1_lane_s16(out+i+7, pcmb, 3);
 #endif /* HAVE_SSE */
-        }
+    }
 #endif /* HAVE_SIMD */
-        for(; i < num_samples; i++)
+    for(; i < num_samples; i++)
+    {
+        float sample = in[i] * 32768.0f;
+        if (sample >=  32766.5)
+            out[i] = (int16_t) 32767;
+        else if (sample <= -32767.5)
+            out[i] = (int16_t)-32768;
+        else
         {
-            float sample = in[i] * 32768.0f;
-            if (sample >=  32766.5)
-                out[i] = (int16_t) 32767;
-            else if (sample <= -32767.5)
-                out[i] = (int16_t)-32768;
-            else
-            {
-                int16_t s = (int16_t)(sample + .5f);
-                s -= (s < 0);   /* away from zero, to be compliant */
-                out[i] = s;
-            }
+            int16_t s = (int16_t)(sample + .5f);
+            s -= (s < 0);   /* away from zero, to be compliant */
+            out[i] = s;
         }
     }
 }
