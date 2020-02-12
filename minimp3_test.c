@@ -14,10 +14,15 @@
     #include <strings.h>
 #endif
 
-#define MODE_LOAD    0
-#define MODE_ITERATE 1
-#define MODE_STREAM  2
-#define MODE_STREAM_CB 3
+#define MODE_LOAD     0
+#define MODE_LOAD_BUF 1
+#define MODE_LOAD_CB  2
+#define MODE_ITERATE  3
+#define MODE_ITERATE_BUF 4
+#define MODE_ITERATE_CB  5
+#define MODE_STREAM     6
+#define MODE_STREAM_BUF 7
+#define MODE_STREAM_CB  8
 
 static int16_t read16le(const void *p)
 {
@@ -115,31 +120,75 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     int no_std_vec = strstr(input_file_name, "nonstandard") || strstr(input_file_name, "ILL");
     double MSE = 0.0, psnr;
 
+    mp3dec_io_t io;
     mp3dec_file_info_t info;
     memset(&info, 0, sizeof(info));
+    io.read = read_cb;
+    io.seek = seek_cb;
     if (MODE_LOAD == mode)
     {
         res = mp3dec_load(&mp3d, input_file_name, &info, 0, 0);
+    } else if (MODE_LOAD_BUF == mode)
+    {
+        int size = 0;
+        FILE *file = fopen(input_file_name, "rb");
+        uint8_t *buf = preload(file, &size);
+        fclose(file);
+        res = buf ? mp3dec_load_buf(&mp3d, buf, size, &info, 0, 0) : -1;
+        free(buf);
+    } else if (MODE_LOAD_CB == mode)
+    {
+        uint8_t *io_buf = malloc(MINIMP3_IO_SIZE);
+        FILE *file = fopen(input_file_name, "rb");
+        io.read_data = io.seek_data = file;
+        res = file ? mp3dec_load_cb(&mp3d, &io, io_buf, MINIMP3_IO_SIZE, &info, 0, 0) : -1;
+        fclose((FILE*)io.read_data);
+        free(io_buf);
     } else if (MODE_ITERATE == mode)
     {
         frames_iterate_data d = { &mp3d, &info, 0 };
         mp3dec_init(&mp3d);
         res = mp3dec_iterate(input_file_name, frames_iterate_cb, &d) > 0 ? 0 : -1;
-    } else if (MODE_STREAM == mode || MODE_STREAM_CB == mode)
+    } else if (MODE_ITERATE_BUF == mode)
+    {
+        int size = 0;
+        FILE *file = fopen(input_file_name, "rb");
+        uint8_t *buf = preload(file, &size);
+        fclose(file);
+        frames_iterate_data d = { &mp3d, &info, 0 };
+        mp3dec_init(&mp3d);
+        res = mp3dec_iterate_buf(buf, size, frames_iterate_cb, &d) > 0 ? 0 : -1;
+        free(buf);
+    } else if (MODE_ITERATE_CB == mode)
+    {
+        uint8_t *io_buf = malloc(MINIMP3_IO_SIZE);
+        FILE *file = fopen(input_file_name, "rb");
+        io.read_data = io.seek_data = file;
+        frames_iterate_data d = { &mp3d, &info, 0 };
+        mp3dec_init(&mp3d);
+        res = mp3dec_iterate_cb(&io, io_buf, MINIMP3_IO_SIZE, frames_iterate_cb, &d) > 0 ? 0 : -1;
+        fclose((FILE*)io.read_data);
+        free(io_buf);
+    } else if (MODE_STREAM == mode || MODE_STREAM_BUF == mode || MODE_STREAM_CB == mode)
     {
         mp3dec_ex_t dec;
-        mp3dec_io_t io;
         size_t readed;
-        if (MODE_STREAM_CB == mode)
-        {
-            FILE *file = fopen(input_file_name, "rb");
-            io.read = read_cb;
-            io.seek = seek_cb;
-            io.read_data = io.seek_data = file;
-            res = file ? mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE) : -1;
-        } else
+        uint8_t *buf;
+        if (MODE_STREAM == mode)
         {
             res = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE);
+        } else if (MODE_STREAM_BUF == mode)
+        {
+            int size = 0;
+            FILE *file = fopen(input_file_name, "rb");
+            buf = preload(file, &size);
+            fclose(file);
+            res = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE);
+        } else if (MODE_STREAM_CB == mode)
+        {
+            FILE *file = fopen(input_file_name, "rb");
+            io.read_data = io.seek_data = file;
+            res = file ? mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE) : -1;
         }
         if (res)
         {
@@ -184,6 +233,8 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             exit(1);
         }
         mp3dec_ex_close(&dec);
+        if (MODE_STREAM_BUF == mode)
+            free(buf);
         if (MODE_STREAM_CB == mode)
             fclose((FILE*)io.read_data);
     } else
@@ -217,7 +268,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         int len_match = ref_samples == info.samples;
         int relaxed_len_match = len_match || (ref_samples + 1152) == info.samples || (ref_samples + 2304) == info.samples;
         int seek_len_match = (ref_samples <= info.samples) || (ref_samples + 2304) >= info.samples;
-        if ((((!relaxed_len_match && 2 != mode && 3 != mode) || !seek_len_match) && 3 == info.layer && !no_std_vec) || (no_std_vec && !len_match))
+        if ((((!relaxed_len_match && MODE_STREAM != mode && MODE_STREAM_BUF != mode && MODE_STREAM_CB != mode) || !seek_len_match) && 3 == info.layer && !no_std_vec) || (no_std_vec && !len_match))
         {   /* some standard vectors are for some reason a little shorter */
             printf("error: reference and produced number of samples do not match (%d/%d)\n", (int)ref_samples, (int)info.samples);
             exit(1);
