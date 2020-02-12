@@ -12,7 +12,7 @@
 
 typedef struct
 {
-    int frame_bytes, channels, hz, layer, bitrate_kbps;
+    int frame_bytes, frame_offset, channels, hz, layer, bitrate_kbps;
 } mp3dec_frame_info_t;
 
 typedef struct
@@ -1711,6 +1711,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
     hdr = mp3 + i;
     memcpy(dec->header, hdr, HDR_SIZE);
     info->frame_bytes = i + frame_size;
+    info->frame_offset = i;
     info->channels = HDR_IS_MONO(hdr) ? 1 : 2;
     info->hz = hdr_sample_rate_hz(hdr);
     info->layer = 4 - HDR_GET_LAYER(hdr);
