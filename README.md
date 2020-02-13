@@ -240,6 +240,7 @@ MP3D_PROGRESS_CB is optional and can be NULL, example of file decoding:
 ## Bindings
 
  * https://github.com/tosone/minimp3 - go bindings
+ * https://github.com/notviri/rmp3 - rust `no_std` bindings which don't allocate.
  * https://github.com/germangb/minimp3-rs - rust bindings
  * https://github.com/johangu/node-minimp3 - NodeJS bindings
  * https://github.com/pyminimp3/pyminimp3 - python bindings
