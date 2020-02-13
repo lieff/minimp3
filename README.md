@@ -216,7 +216,7 @@ size_t mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *use
 int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int seek_method);
 #ifdef _WIN32
 int mp3dec_load_w(mp3dec_t *dec, const wchar_t *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
-int mp3dec_iterate_w(const wchar_t *file_name, MP3D_ITERATE_CB callback, void *user_data);
+size_t mp3dec_iterate_w(const wchar_t *file_name, MP3D_ITERATE_CB callback, void *user_data);
 int mp3dec_ex_open_w(mp3dec_ex_t *dec, const wchar_t *file_name, int seek_method);
 #endif
 #endif
