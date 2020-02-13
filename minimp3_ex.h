@@ -1115,7 +1115,7 @@ int mp3dec_ex_open_cb(mp3dec_ex_t *dec, mp3dec_io_t *io, int seek_method)
         return MP3D_E_MEMORY;
 #else
     dec->file.size = MINIMP3_IO_SIZE;
-    dec->file.buffer = malloc(dec->file.size);
+    dec->file.buffer = (const uint8_t*)malloc(dec->file.size);
     if (!dec->file.buffer)
         return MP3D_E_MEMORY;
 #endif
