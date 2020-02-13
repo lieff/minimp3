@@ -173,7 +173,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     {
         mp3dec_ex_t dec;
         size_t readed;
-        uint8_t *buf;
+        uint8_t *buf = 0;
         if (MODE_STREAM == mode)
         {
             res = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE);
@@ -183,7 +183,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             FILE *file = fopen(input_file_name, "rb");
             buf = preload(file, &size);
             fclose(file);
-            res = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE);
+            res = buf ? mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE) : -1;
         } else if (MODE_STREAM_CB == mode)
         {
             FILE *file = fopen(input_file_name, "rb");
@@ -247,7 +247,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             exit(1);
         }
         mp3dec_ex_close(&dec);
-        if (MODE_STREAM_BUF == mode)
+        if (MODE_STREAM_BUF == mode && buf)
             free(buf);
         if (MODE_STREAM_CB == mode)
             fclose((FILE*)io.read_data);
