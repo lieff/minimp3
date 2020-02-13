@@ -157,24 +157,68 @@ If you need only decode file/buffer, you can use optional high-level API.
 Just ``#include`` ``minimp3_ex.h`` instead and use following additional functions:
 
 ```c
+#define MP3D_SEEK_TO_BYTE   0
+#define MP3D_SEEK_TO_SAMPLE 1
+
+#define MINIMP3_PREDECODE_FRAMES 2 /* frames to pre-decode and skip after seek (to fill internal structures) */
+/*#define MINIMP3_SEEK_IDX_LINEAR_SEARCH*/ /* define to use linear index search instead of binary search on seek */
+#define MINIMP3_IO_SIZE (128*1024) /* io buffer size for streaming functions, must be greater than MINIMP3_BUF_SIZE */
+#define MINIMP3_BUF_SIZE (16*1024) /* buffer which can hold minimum 10 consecutive mp3 frames (~16KB) worst case */
+#define MINIMP3_ENABLE_RING 0      /* enable hardware magic ring buffer if available, to make less input buffer memmove(s) in callback IO mode */
+
+#define MP3D_E_MEMORY  -1
+#define MP3D_E_IOERROR -2
+
 typedef struct
 {
-    int16_t *buffer;
-    size_t samples; /* channels included, byte size = samples*sizeof(int16_t) */
+    mp3d_sample_t *buffer;
+    size_t samples; /* channels included, byte size = samples*sizeof(mp3d_sample_t) */
     int channels, hz, layer, avg_bitrate_kbps;
 } mp3dec_file_info_t;
 
-typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, size_t offset, mp3dec_frame_info_t *info);
-typedef int (*MP3D_PROGRESS_CB)(void *user_data, size_t file_size, size_t offset, mp3dec_frame_info_t *info);
+typedef size_t (*MP3D_READ_CB)(void *buf, size_t size, void *user_data);
+typedef int (*MP3D_SEEK_CB)(uint64_t position, void *user_data);
+
+typedef struct
+{
+    MP3D_READ_CB read;
+    void *read_data;
+    MP3D_SEEK_CB seek;
+    void *seek_data;
+} mp3dec_io_t;
+
+typedef struct
+{
+    uint64_t samples;
+    mp3dec_frame_info_t info;
+    ...
+} mp3dec_ex_t;
+
+typedef int (*MP3D_ITERATE_CB)(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t buf_size, uint64_t offset, mp3dec_frame_info_t *info);
+typedef int (*MP3D_PROGRESS_CB)(void *user_data, size_t file_size, uint64_t offset, mp3dec_frame_info_t *info);
 
 /* decode whole buffer block */
-void mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
-/* iterate through frames with optional decoding */
-void mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data);
+int mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
+int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
+/* iterate through frames */
+size_t mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data);
+uint64_t mp3dec_iterate_cb(mp3dec_io_t *io, uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data);
+/* streaming decoder with seeking capability */
+int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, int seek_method);
+int mp3dec_ex_open_cb(mp3dec_ex_t *dec, mp3dec_io_t *io, int seek_method);
+void mp3dec_ex_close(mp3dec_ex_t *dec);
+int mp3dec_ex_seek(mp3dec_ex_t *dec, uint64_t position);
+size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples);
 #ifndef MINIMP3_NO_STDIO
-/* stdio versions with file pre-load */
+/* stdio versions of file load, iterate and stream */
 int mp3dec_load(mp3dec_t *dec, const char *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
-int mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_data);
+size_t mp3dec_iterate(const char *file_name, MP3D_ITERATE_CB callback, void *user_data);
+int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int seek_method);
+#ifdef _WIN32
+int mp3dec_load_w(mp3dec_t *dec, const wchar_t *file_name, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data);
+int mp3dec_iterate_w(const wchar_t *file_name, MP3D_ITERATE_CB callback, void *user_data);
+int mp3dec_ex_open_w(mp3dec_ex_t *dec, const wchar_t *file_name, int seek_method);
+#endif
 #endif
 ```
 
