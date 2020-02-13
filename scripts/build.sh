@@ -30,6 +30,10 @@ scripts/test_mode.sh 8 -1 -1
 set +e
 ./minimp3
 ./minimp3 do_not_exist
+./minimp3 -z
+./minimp3 vectors/l3-nonstandard-id3v1.bit vectors/ILL2_mono.pcm
+./minimp3 vectors/l3-nonstandard-id3v1.bit - temp.pcm
+rm temp.pcm
 set -e
 gcov minimp3_test.c
 
