@@ -254,6 +254,7 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
     {
         uint32_t frames;
         int i, delay, padding, free_format_bytes = 0, frame_size = 0;
+        const uint8_t *hdr;
         if (io)
         {
             if (!eof && filled - consumed < MINIMP3_BUF_SIZE)
@@ -270,17 +271,18 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
             }
             i = mp3d_find_frame(buf + consumed, filled - consumed, &free_format_bytes, &frame_size);
             consumed += i;
+            hdr = buf + consumed;
         } else
         {
             i = mp3d_find_frame(buf, buf_size, &free_format_bytes, &frame_size);
             buf      += i;
             buf_size -= i;
+            hdr = buf;
         }
         if (i && !frame_size)
             continue;
         if (!frame_size)
             return 0;
-        const uint8_t *hdr = buf;
         frame_info.channels = HDR_IS_MONO(hdr) ? 1 : 2;
         frame_info.hz = hdr_sample_rate_hz(hdr);
         frame_info.layer = 4 - HDR_GET_LAYER(hdr);
