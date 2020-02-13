@@ -113,7 +113,7 @@ static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_si
     return 0;
 }
 
-static void decode_file(const char *input_file_name, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out, const int mode, int position)
+static void decode_file(const char *input_file_name, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out, const int mode, int position, int portion)
 {
     mp3dec_t mp3d;
     int i, res = -1, data_bytes, total_samples = 0, maxdiff = 0;
@@ -220,11 +220,25 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             ref_size -= skip_ref;
             mp3dec_ex_seek(&dec, position);
         }
-        readed = mp3dec_ex_read(&dec, info.buffer, info.samples);
-        if (readed != info.samples)
+        if (portion < 0)
         {
-            printf("error: mp3dec_ex_read() readed less than expected\n");
-            exit(1);
+            portion = (uint64_t)(info.samples + 150)*rand()/RAND_MAX;
+            printf("info: read by %d samples\n", portion);
+        }
+        if (0 == portion)
+            portion = info.samples;
+        int samples = info.samples, samples_readed = 0;
+        while (samples)
+        {
+            int to_read = MINIMP3_MIN(samples, portion);
+            readed = mp3dec_ex_read(&dec, info.buffer + samples_readed, to_read);
+            if (readed != (size_t)to_read)
+            {
+                printf("error: mp3dec_ex_read() readed less than expected\n");
+                exit(1);
+            }
+            samples -= to_read;
+            samples_readed += to_read;
         }
         readed = mp3dec_ex_read(&dec, info.buffer, 1);
         if (readed)
@@ -332,7 +346,7 @@ int main2(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
-    int wave_out = 0, mode = 0, position = 0, i, ref_size;
+    int wave_out = 0, mode = 0, position = 0, portion = 0, i, ref_size;
     for(i = 1; i < argc; i++)
     {
         if (argv[i][0] != '-')
@@ -341,6 +355,7 @@ int main(int argc, char *argv[])
         {
         case 'm': i++; if (i < argc) mode = atoi(argv[i]); break;
         case 's': i++; if (i < argc) position = atoi(argv[i]); break;
+        case 'p': i++; if (i < argc) portion  = atoi(argv[i]); break;
         default:
             printf("error: unrecognized option\n");
             return 1;
@@ -372,7 +387,7 @@ int main(int argc, char *argv[])
         printf("error: no file names given\n");
         return 1;
     }
-    decode_file(input_file_name, buf_ref, ref_size, file_out, wave_out, mode, position);
+    decode_file(input_file_name, buf_ref, ref_size, file_out, wave_out, mode, position, portion);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     }
 #endif

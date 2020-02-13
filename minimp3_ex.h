@@ -65,11 +65,9 @@ typedef struct
     uint64_t offset, samples, detected_samples, cur_sample, start_offset, end_offset;
     mp3dec_frame_info_t info;
     mp3d_sample_t buffer[MINIMP3_MAX_SAMPLES_PER_FRAME];
-#ifndef MINIMP3_NO_STDIO
-    int is_file;
-#endif
+    size_t input_consumed, input_filled;
+    int is_file, seek_method, vbr_tag_found;
     int free_format_bytes;
-    int seek_method, vbr_tag_found;
     int buffer_samples, buffer_consumed, to_skip, start_delay;
 } mp3dec_ex_t;
 
@@ -688,6 +686,8 @@ do_exit:
         dec->io->seek(dec->offset, dec->io->seek_data);
     dec->buffer_samples  = 0;
     dec->buffer_consumed = 0;
+    dec->input_consumed  = 0;
+    dec->input_filled    = 0;
     mp3dec_init(&dec->mp3d);
     return 0;
 }
@@ -696,7 +696,6 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
 {
     uint64_t end_offset = dec->end_offset ? dec->end_offset : dec->file.size;
     size_t samples_requested = samples;
-    size_t filled = 0, consumed = 0;
     int eof = 0;
     mp3dec_frame_info_t frame_info;
     memset(&frame_info, 0, sizeof(frame_info));
@@ -723,23 +722,23 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
         const uint8_t *dec_buf;
         if (dec->io)
         {
-            if (!eof && (filled - consumed) < MINIMP3_BUF_SIZE)
+            if (!eof && (dec->input_filled - dec->input_consumed) < MINIMP3_BUF_SIZE)
             {   /* keep minimum 10 consecutive mp3 frames (~16KB) worst case */
-                memmove((uint8_t*)dec->file.buffer, (uint8_t*)dec->file.buffer + consumed, filled - consumed);
-                filled -= consumed;
-                consumed = 0;
-                size_t readed = dec->io->read((uint8_t*)dec->file.buffer + filled, dec->file.size - filled, dec->io->read_data);
-                if (readed != (dec->file.size - filled))
+                memmove((uint8_t*)dec->file.buffer, (uint8_t*)dec->file.buffer + dec->input_consumed, dec->input_filled - dec->input_consumed);
+                dec->input_filled -= dec->input_consumed;
+                dec->input_consumed = 0;
+                size_t readed = dec->io->read((uint8_t*)dec->file.buffer + dec->input_filled, dec->file.size - dec->input_filled, dec->io->read_data);
+                if (readed != (dec->file.size - dec->input_filled))
                     eof = 1;
-                filled += readed;
+                dec->input_filled += readed;
                 if (eof)
-                    mp3dec_skip_id3v1((uint8_t*)dec->file.buffer, &filled);
+                    mp3dec_skip_id3v1((uint8_t*)dec->file.buffer, &dec->input_filled);
             }
-            dec_buf = dec->file.buffer + consumed;
-            if (!(filled - consumed))
+            dec_buf = dec->file.buffer + dec->input_consumed;
+            if (!(dec->input_filled - dec->input_consumed))
                 break;
-            dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, dec_buf, filled - consumed, dec->buffer, &frame_info);
-            consumed += frame_info.frame_bytes;
+            dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, dec_buf, dec->input_filled - dec->input_consumed, dec->buffer, &frame_info);
+            dec->input_consumed += frame_info.frame_bytes;
         } else
         {
             dec_buf = dec->file.buffer + dec->offset;
