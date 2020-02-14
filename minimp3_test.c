@@ -148,7 +148,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     {
         frames_iterate_data d = { &mp3d, &info, 0 };
         mp3dec_init(&mp3d);
-        res = mp3dec_iterate(input_file_name, frames_iterate_cb, &d) > 0 ? 0 : -1;
+        res = mp3dec_iterate(input_file_name, frames_iterate_cb, &d);
     } else if (MODE_ITERATE_BUF == mode)
     {
         int size = 0;
@@ -157,7 +157,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         fclose(file);
         frames_iterate_data d = { &mp3d, &info, 0 };
         mp3dec_init(&mp3d);
-        res = mp3dec_iterate_buf(buf, size, frames_iterate_cb, &d) > 0 ? 0 : -1;
+        res = mp3dec_iterate_buf(buf, size, frames_iterate_cb, &d);
         free(buf);
     } else if (MODE_ITERATE_CB == mode)
     {
@@ -166,7 +166,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         io.read_data = io.seek_data = file;
         frames_iterate_data d = { &mp3d, &info, 0 };
         mp3dec_init(&mp3d);
-        res = mp3dec_iterate_cb(&io, io_buf, MINIMP3_IO_SIZE, frames_iterate_cb, &d) > 0 ? 0 : -1;
+        res = mp3dec_iterate_cb(&io, io_buf, MINIMP3_IO_SIZE, frames_iterate_cb, &d);
         fclose((FILE*)io.read_data);
         free(io_buf);
     } else if (MODE_STREAM == mode || MODE_STREAM_BUF == mode || MODE_STREAM_CB == mode)
@@ -183,7 +183,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             FILE *file = fopen(input_file_name, "rb");
             buf = preload(file, &size);
             fclose(file);
-            res = buf ? mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE) : -1;
+            res = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE);
         } else if (MODE_STREAM_CB == mode)
         {
             FILE *file = fopen(input_file_name, "rb");
