@@ -455,7 +455,7 @@ int mp3dec_iterate_cb(mp3dec_io_t *io, uint8_t *buf, size_t buf_size, MP3D_ITERA
     if (!io || !buf || (size_t)-1 == buf_size || buf_size < MINIMP3_BUF_SIZE)
         return MP3D_E_PARAM;
     size_t filled = io->read(buf, MINIMP3_ID3_DETECT_SIZE, io->read_data), consumed = 0;
-    uint64_t readed = 0, frames = 0;
+    uint64_t readed = 0;
     mp3dec_frame_info_t frame_info;
     int eof = 0;
     memset(&frame_info, 0, sizeof(frame_info));
@@ -500,7 +500,6 @@ int mp3dec_iterate_cb(mp3dec_io_t *io, uint8_t *buf, size_t buf_size, MP3D_ITERA
         frame_info.frame_bytes = frame_size;
 
         readed += i;
-        frames++;
         if (callback)
         {
             if ((ret = callback(user_data, hdr, frame_size, free_format_bytes, filled - consumed, readed, &frame_info)))
@@ -765,8 +764,8 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
         {   /* count decoded samples to properly cut padding */
             if (dec->cur_sample + to_copy >= dec->detected_samples)
                 to_copy = dec->detected_samples - dec->cur_sample;
-            dec->cur_sample += to_copy;
         }
+        dec->cur_sample += to_copy;
         memcpy(buf, dec->buffer + dec->buffer_consumed, to_copy*sizeof(mp3d_sample_t));
         buf += to_copy;
         dec->buffer_consumed += to_copy;
@@ -820,8 +819,8 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
             {   /* ^ handle padding */
                 if (dec->cur_sample + to_copy >= dec->detected_samples)
                     to_copy = dec->detected_samples - dec->cur_sample;
-                dec->cur_sample += to_copy;
             }
+            dec->cur_sample += to_copy;
             memcpy(buf, dec->buffer + dec->buffer_consumed, to_copy*sizeof(mp3d_sample_t));
             buf += to_copy;
             dec->buffer_consumed += to_copy;
