@@ -230,13 +230,13 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
         return MP3D_E_PARAM;
 
     /* skip id3 */
-    size_t filled, consumed;
-    int eof, ret = 0;
+    size_t filled = 0, consumed = 0;
+    int eof = 0, ret = 0;
     if (io)
     {
         if (io->seek(0, io->seek_data))
             return MP3D_E_IOERROR;
-        filled = io->read(buf, MINIMP3_ID3_DETECT_SIZE, io->read_data), consumed = 0, eof = 0;
+        filled = io->read(buf, MINIMP3_ID3_DETECT_SIZE, io->read_data);
         if (filled > MINIMP3_ID3_DETECT_SIZE)
             return MP3D_E_IOERROR;
         if (MINIMP3_ID3_DETECT_SIZE != filled)
