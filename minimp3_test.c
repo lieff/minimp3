@@ -200,7 +200,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             io.read_data = io.seek_data = file;
             res = file ? mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE) : -1;
         }
-        if (res)
+        if (res && MP3D_E_DECODE != res)
         {
             printf("error: mp3dec_ex_open() failed\n");
             exit(1);

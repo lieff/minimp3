@@ -20,7 +20,8 @@
 #define MP3D_E_PARAM   -1
 #define MP3D_E_MEMORY  -2
 #define MP3D_E_IOERROR -3
-#define MP3D_E_USER    -4
+#define MP3D_E_USER    -4  /* can be used to stop processing from callbacks without indicating specific error */
+#define MP3D_E_DECODE  -5  /* decode error which can't be safely skipped, such as sample rate, layer and channels change */
 
 typedef struct
 {
@@ -230,7 +231,7 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
 
     /* skip id3 */
     size_t filled, consumed;
-    int eof;
+    int eof, ret = 0;
     if (io)
     {
         if (io->seek(0, io->seek_data))
@@ -375,13 +376,19 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
         if (samples)
         {
             if (info->hz != frame_info.hz || info->layer != frame_info.layer)
+            {
+                ret = MP3D_E_DECODE;
                 break;
+            }
             if (info->channels && info->channels != frame_info.channels)
+            {
 #ifdef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
                 info->channels = 0; /* mark file with mono-stereo transition */
 #else
+                ret = MP3D_E_DECODE;
                 break;
 #endif
+            }
             samples *= frame_info.channels;
             if (to_skip)
             {
@@ -395,9 +402,9 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
             frames++;
             if (progress_cb)
             {
-                int ret = progress_cb(user_data, orig_buf_size, orig_buf_size - buf_size, &frame_info);
+                ret = progress_cb(user_data, orig_buf_size, orig_buf_size - buf_size, &frame_info);
                 if (ret)
-                    return ret;
+                    break;
             }
         }
     } while (frame_info.frame_bytes);
@@ -408,7 +415,7 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
         info->buffer = (mp3d_sample_t*)realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
     if (frames)
         info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
-    return 0;
+    return ret;
 }
 
 int mp3dec_iterate_buf(const uint8_t *buf, size_t buf_size, MP3D_ITERATE_CB callback, void *user_data)
@@ -805,6 +812,15 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
             dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, dec_buf, MINIMP3_MIN(buf_size, (uint64_t)INT_MAX), dec->buffer, &frame_info);
         }
         dec->buffer_consumed = 0;
+        if (dec->info.hz != frame_info.hz || dec->info.layer != frame_info.layer
+#ifndef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
+            || dec->info.channels != frame_info.channels
+#endif
+            )
+        {
+            dec->last_error = MP3D_E_DECODE;
+            break;
+        }
         if (dec->buffer_samples)
         {
             dec->buffer_samples *= frame_info.channels;
