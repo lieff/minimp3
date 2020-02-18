@@ -70,13 +70,23 @@ static unsigned char *preload(FILE *file, int *data_size)
     return data;
 }
 
+static int io_num, fail_io_num = -1;
+
 static size_t read_cb(void *buf, size_t size, void *user_data)
 {
+    /*printf("%d read_cb(%d)\n", io_num, (int)size);*/
+    if (fail_io_num == io_num)
+        return -1;
+    io_num++;
     return fread(buf, 1, size, (FILE*)user_data);
 }
 
 static int seek_cb(uint64_t position, void *user_data)
 {
+    /*printf("%d seek_cb(%d)\n", io_num, (int)position);*/
+    if (fail_io_num == io_num)
+        return -1;
+    io_num++;
     return fseek((FILE*)user_data, position, SEEK_SET);
 }
 
@@ -356,6 +366,7 @@ int main(int argc, char *argv[])
         case 'm': i++; if (i < argc) mode = atoi(argv[i]); break;
         case 's': i++; if (i < argc) position = atoi(argv[i]); break;
         case 'p': i++; if (i < argc) portion  = atoi(argv[i]); break;
+        case 'e': i++; if (i < argc) fail_io_num = atoi(argv[i]); break;
         default:
             printf("error: unrecognized option\n");
             return 1;
