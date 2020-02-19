@@ -219,7 +219,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
 #else
             srand(time(0));
 #endif
-            position = info.samples > 150 ? (uint64_t)(info.samples - 150)*rand()/RAND_MAX : 0;
+            position = info.samples > 200 ? (uint64_t)(info.samples - 200)*rand()/RAND_MAX : 0;
             printf("info: seek to %d/%d\n", position, (int)info.samples);
         }
         if (position)
