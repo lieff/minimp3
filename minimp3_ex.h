@@ -749,6 +749,7 @@ do_exit:
     dec->buffer_consumed = 0;
     dec->input_consumed  = 0;
     dec->input_filled    = 0;
+    dec->last_error      = 0;
     mp3dec_init(&dec->mp3d);
     return 0;
 }
@@ -764,6 +765,8 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
     memset(&frame_info, 0, sizeof(frame_info));
     if (dec->detected_samples && dec->cur_sample >= dec->detected_samples)
         return 0; /* at end of stream */
+    if (dec->last_error)
+        return 0; /* error eof state, seek can reset it */
     if (dec->buffer_consumed < dec->buffer_samples)
     {
         size_t to_copy = MINIMP3_MIN((size_t)(dec->buffer_samples - dec->buffer_consumed), samples);
@@ -791,7 +794,8 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
                 dec->input_filled -= dec->input_consumed;
                 dec->input_consumed = 0;
                 size_t readed = dec->io->read((uint8_t*)dec->file.buffer + dec->input_filled, dec->file.size - dec->input_filled, dec->io->read_data);
-                dec->last_error = (readed > (dec->file.size - dec->input_filled)) ? MP3D_E_IOERROR : 0;
+                if (readed > (dec->file.size - dec->input_filled))
+                    dec->last_error = MP3D_E_IOERROR;
                 if (readed != (dec->file.size - dec->input_filled))
                     eof = 1;
                 dec->input_filled += readed;
