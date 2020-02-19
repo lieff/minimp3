@@ -28,29 +28,29 @@ scripts/test_mode.sh 6 -1 -1
 scripts/test_mode.sh 7 -1 -1
 scripts/test_mode.sh 8 -1 -1
 set +e
-./minimp3
-./minimp3 do_not_exist
-./minimp3 -z
-./minimp3 vectors/l3-nonstandard-id3v1.bit vectors/ILL2_mono.pcm
-./minimp3 vectors/l3-nonstandard-id3v1.bit - temp.pcm
+[[ "$(./minimp3)" != "error: no file names given" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 do_not_exist)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -z)" != "error: unrecognized option" ]] && echo fail && exit 1 || echo pass
+[[ ! "$(./minimp3 vectors/l3-nonstandard-id3v1.bit vectors/ILL2_mono.pcm)" =~ "rate=48000 samples=1152 max_diff=17637 PSNR=15" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 vectors/l3-nonstandard-id3v1.bit - temp.pcm)" != "rate=48000 samples=1152 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
 rm temp.pcm
 
-./minimp3 -m 2 -e 0 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 2 -e 1 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 2 -e 2 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 2 -e 3 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 2 -e 2 vectors/l3-nonstandard-id3v2.bit
-./minimp3 -m 2 -e 3 vectors/l3-nonstandard-id3v2.bit
+[[ "$(./minimp3 -m 2 -e 0 vectors/l3-sin1k0db.bit)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 2 -e 1 vectors/l3-sin1k0db.bit)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 2 -e 2 vectors/l3-sin1k0db.bit)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 2 -e 3 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm)" != "error: reference and produced number of samples do not match (725760/716544)" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 2 -e 2 vectors/l3-nonstandard-id3v2.bit)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 2 -e 3 vectors/l3-nonstandard-id3v2.bit)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
 
-./minimp3 -m 5 -e 1 vectors/l3-nonstandard-id3v2.bit
-./minimp3 -m 5 -e 2 vectors/l3-nonstandard-id3v2.bit
+[[ "$(./minimp3 -m 5 -e 1 vectors/l3-nonstandard-id3v2.bit)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 5 -e 2 vectors/l3-nonstandard-id3v2.bit)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
 
-./minimp3 -m 8 -e 0 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 8 -e 1 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 8 -e 2 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 8 -e 3 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 8 -e 4 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
-./minimp3 -m 8 -e 5 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
+[[ "$(./minimp3 -m 8 -e 0 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-3 failed" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 8 -e 1 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-3 failed" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 8 -e 2 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-3 failed" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 8 -e 3 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-3 failed" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 8 -e 4 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-3 failed" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 8 -e 5 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_read() readed less than expected, last_error=-5" ]] && echo fail && exit 1 || echo pass
 set -e
 gcov minimp3_test.c
 
