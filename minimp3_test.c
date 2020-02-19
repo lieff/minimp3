@@ -144,14 +144,14 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         FILE *file = fopen(input_file_name, "rb");
         uint8_t *buf = preload(file, &size);
         fclose(file);
-        res = buf ? mp3dec_load_buf(&mp3d, buf, size, &info, 0, 0) : -1;
+        res = buf ? mp3dec_load_buf(&mp3d, buf, size, &info, 0, 0) : MP3D_E_IOERROR;
         free(buf);
     } else if (MODE_LOAD_CB == mode)
     {
         uint8_t *io_buf = malloc(MINIMP3_IO_SIZE);
         FILE *file = fopen(input_file_name, "rb");
         io.read_data = io.seek_data = file;
-        res = file ? mp3dec_load_cb(&mp3d, &io, io_buf, MINIMP3_IO_SIZE, &info, 0, 0) : -1;
+        res = file ? mp3dec_load_cb(&mp3d, &io, io_buf, MINIMP3_IO_SIZE, &info, 0, 0) : MP3D_E_IOERROR;
         fclose((FILE*)io.read_data);
         free(io_buf);
     } else if (MODE_ITERATE == mode)
@@ -167,7 +167,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         fclose(file);
         frames_iterate_data d = { &mp3d, &info, 0 };
         mp3dec_init(&mp3d);
-        res = mp3dec_iterate_buf(buf, size, frames_iterate_cb, &d);
+        res = buf ? mp3dec_iterate_buf(buf, size, frames_iterate_cb, &d) : MP3D_E_IOERROR;
         free(buf);
     } else if (MODE_ITERATE_CB == mode)
     {
@@ -176,7 +176,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         io.read_data = io.seek_data = file;
         frames_iterate_data d = { &mp3d, &info, 0 };
         mp3dec_init(&mp3d);
-        res = mp3dec_iterate_cb(&io, io_buf, MINIMP3_IO_SIZE, frames_iterate_cb, &d);
+        res = file ? mp3dec_iterate_cb(&io, io_buf, MINIMP3_IO_SIZE, frames_iterate_cb, &d) : MP3D_E_IOERROR;
         fclose((FILE*)io.read_data);
         free(io_buf);
     } else if (MODE_STREAM == mode || MODE_STREAM_BUF == mode || MODE_STREAM_CB == mode)
@@ -193,16 +193,16 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             FILE *file = fopen(input_file_name, "rb");
             buf = preload(file, &size);
             fclose(file);
-            res = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE);
+            res = buf ? mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE) : MP3D_E_IOERROR;
         } else if (MODE_STREAM_CB == mode)
         {
             FILE *file = fopen(input_file_name, "rb");
             io.read_data = io.seek_data = file;
-            res = file ? mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE) : -1;
+            res = file ? mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE) : MP3D_E_IOERROR;
         }
-        if (res && MP3D_E_DECODE != res)
+        if (res)
         {
-            printf("error: mp3dec_ex_open() failed\n");
+            printf("error: mp3dec_ex_open()=%d failed\n", res);
             exit(1);
         }
         info.samples = dec.samples;
@@ -228,7 +228,12 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             int skip_ref = MINIMP3_MIN((size_t)ref_size, position*sizeof(int16_t));
             buf_ref  += skip_ref;
             ref_size -= skip_ref;
-            mp3dec_ex_seek(&dec, position);
+            res = mp3dec_ex_seek(&dec, position);
+            if (res)
+            {
+                printf("error: mp3dec_ex_seek()=%d failed\n", res);
+                exit(1);
+            }
         }
         if (portion < 0)
         {
@@ -244,7 +249,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             readed = mp3dec_ex_read(&dec, info.buffer + samples_readed, to_read);
             if (readed != (size_t)to_read)
             {
-                printf("error: mp3dec_ex_read() readed less than expected\n");
+                printf("error: mp3dec_ex_read() readed less than expected, last_error=%d\n", dec.last_error);
                 exit(1);
             }
             samples -= to_read;
@@ -253,7 +258,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         readed = mp3dec_ex_read(&dec, info.buffer, 1);
         if (readed)
         {
-            printf("error: mp3dec_ex_read() readed more than expected\n");
+            printf("error: mp3dec_ex_read() readed more than expected, last_error=%d\n", dec.last_error);
             exit(1);
         }
         mp3dec_ex_close(&dec);
@@ -266,13 +271,10 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         printf("error: unknown mode\n");
         exit(1);
     }
-    if (res)
+    if (res && MP3D_E_DECODE != res)
     {
-        if (ref_size)
-        {
-            printf("error: file not found or read error\n");
-            exit(1);
-        }
+        printf("error: read function failed, code=%d\n", res);
+        exit(1);
     }
 #ifdef MINIMP3_FLOAT_OUTPUT
     int16_t *buffer = malloc(info.samples*sizeof(int16_t));
