@@ -144,16 +144,29 @@ one_ non-free-format frame.
 ## Seeking
 
 You can seek to any byte in the stream and call ``mp3dec_decode_frame``; this
-will work in almost all cases, but is not completely guaranteed. If granule data
-is accidentally detected as a valid MP3 header, short audio artefacting is
-possible. If the file is known to be cbr, then all frames have equal size and
+will work in almost all cases, but is not completely guaranteed. Probablility of
+sync procedure failure lowers when MAX_FRAME_SYNC_MATCHES value grows. Default
+MAX_FRAME_SYNC_MATCHES=10 and probablility of sync failure should be very low.
+If granule data is accidentally detected as a valid MP3 header, short audio artefacting is
+possible.
+
+High-level mp3dec_ex_seek function supports precise seek to sample (MP3D_SEEK_TO_SAMPLE)
+using index and binary search.
+
+## Track length detect
+
+If the file is known to be cbr, then all frames have equal size and
 lack ID3 tags, which allows us to decode the first frame and calculate all frame
 positions as ``frame_bytes * N``. However, because of padding, frames can differ
 in size even in this case.
 
+In general case whole stream scan is needed to calculate it's length. Scan can be
+omitted if vbr tag is present (added by encoders like lame and ffmpeg), which contains
+length info. High-level functions automatically use the vbr tag if present.
+
 ## High-level API
 
-If you need only decode file/buffer, you can use optional high-level API.
+If you need only decode file/buffer or use precise seek, you can use optional high-level API.
 Just ``#include`` ``minimp3_ex.h`` instead and use following additional functions:
 
 ```c
@@ -191,6 +204,7 @@ typedef struct
 {
     uint64_t samples;
     mp3dec_frame_info_t info;
+    int last_error;
     ...
 } mp3dec_ex_t;
 
@@ -234,7 +248,32 @@ MP3D_PROGRESS_CB is optional and can be NULL, example of file decoding:
     {
         /* error */
     }
-    /* mp3dec_file_info_t contains decoded samples and info, use free(info.buffer) to deallocate samples */
+    /* mp3dec_file_info_t contains decoded samples and info,
+       use free(info.buffer) to deallocate samples */
+```
+
+Example of file decoding with seek capability:
+
+```c
+    mp3dec_ex_t dec;
+    if (mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE))
+    {
+        /* error */
+    }
+    /* dec.samples, dec.info.hz, dec.info.layer, dec.info.channels should be filled */
+    if (mp3dec_ex_seek(&dec, position))
+    {
+        /* error */
+    }
+    mp3d_sample_t *buffer = malloc(dec.samples*sizeof(mp3d_sample_t));
+    size_t readed = mp3dec_ex_read(&dec, buffer, dec.samples);
+    if (readed != dec.samples) /* normal eof or error condition */
+    {
+        if (dec.last_error)
+        {
+            /* error */
+        }
+    }
 ```
 
 ## Bindings
