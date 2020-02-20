@@ -1217,7 +1217,7 @@ int mp3dec_load_w(mp3dec_t *dec, const wchar_t *file_name, mp3dec_file_info_t *i
     return mp3dec_load_mapinfo(dec, &map_info,info, progress_cb, user_data);
 }
 
-size_t mp3dec_iterate_w(const wchar_t *file_name, MP3D_ITERATE_CB callback, void *user_data)
+int mp3dec_iterate_w(const wchar_t *file_name, MP3D_ITERATE_CB callback, void *user_data)
 {
     int ret;
     mp3dec_map_info_t map_info;
