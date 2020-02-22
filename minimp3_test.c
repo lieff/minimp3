@@ -334,13 +334,6 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         fwrite(wav_header(info.hz, info.channels, 16, data_bytes), 1, 44, file_out);
     }
 #endif
-#ifdef MP4_MODE
-    if (!total_samples)
-    {
-        printf("error: mp4 test should decode some samples\n");
-        exit(1);
-    }
-#endif
 }
 
 #ifdef LIBFUZZER
