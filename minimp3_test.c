@@ -210,7 +210,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         info.hz      = dec.info.hz;
         info.layer   = dec.info.layer;
         info.channels = dec.info.channels;
-        if (position < 0)
+        if (position < 0 && -2 != position)
         {
 #ifdef _WIN32
             LARGE_INTEGER t;
@@ -224,6 +224,8 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         }
         if (position)
         {
+            if (-2 == position)
+                position = 0;
             info.samples -= MINIMP3_MIN(info.samples, (size_t)position);
             int skip_ref = MINIMP3_MIN((size_t)ref_size, position*sizeof(int16_t));
             buf_ref  += skip_ref;
