@@ -54,6 +54,9 @@ rm temp.pcm
 
 [[ "$(./minimp3 vectors/l3-nonstandard-id3v2-only.bit vectors/l3-nonstandard-id3v2-only.pcm)" != "rate=0 samples=0 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 3 vectors/l3-nonstandard-id3v2-only.bit vectors/l3-nonstandard-id3v2-only.pcm)" != "rate=0 samples=0 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
+
+[[ "$(./minimp3 -m 2 vectors/l3-nonstandard-small.bit vectors/l3-nonstandard-small.pcm)" != "rate=0 samples=0 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 5 vectors/l3-nonstandard-small.bit vectors/l3-nonstandard-small.pcm)" != "rate=0 samples=0 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
 set -e
 gcov minimp3_test.c
 
