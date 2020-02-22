@@ -60,7 +60,16 @@ rm temp.pcm
 
 [[ "$(./minimp3 -m 2 vectors/l3-nonstandard-small.bit vectors/l3-nonstandard-small.pcm)" != "rate=0 samples=0 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 5 vectors/l3-nonstandard-small.bit vectors/l3-nonstandard-small.pcm)" != "rate=0 samples=0 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
+
+[[ "$(./minimp3 -m 6 -s 215 -b vectors/l3-sin1k0db.bit -)" != "rate=44100 samples=725760 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 6 -s 633 -b vectors/l3-sin1k0db.bit -)" != "rate=44100 samples=723456 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
 set -e
+
+./minimp3 -m 6 -s 215 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
+./minimp3 -m 6 -s 633 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db_ofs633.pcm
+./minimp3 -m 8 -s 215 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
+./minimp3 -m 8 -s 633 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db_ofs633.pcm
+
 gcov minimp3_test.c
 
 echo testing x86 w/o sse...

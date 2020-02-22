@@ -591,14 +591,11 @@ int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, in
     dec->file.size   = buf_size;
     dec->seek_method = seek_method;
     mp3dec_init(&dec->mp3d);
-    if (MP3D_SEEK_TO_SAMPLE == dec->seek_method)
-    {
-        int ret = mp3dec_iterate_buf(dec->file.buffer, dec->file.size, mp3dec_load_index, dec);
-        if (ret && MP3D_E_USER != ret)
-            return ret;
-        mp3dec_init(&dec->mp3d);
-        dec->buffer_samples = 0;
-    }
+    int ret = mp3dec_iterate_buf(dec->file.buffer, dec->file.size, mp3dec_load_index, dec);
+    if (ret && MP3D_E_USER != ret)
+        return ret;
+    mp3dec_init(&dec->mp3d);
+    dec->buffer_samples = 0;
     return 0;
 }
 
@@ -635,8 +632,7 @@ int mp3dec_ex_seek(mp3dec_ex_t *dec, uint64_t position)
     {
         if (dec->io)
         {
-            if (dec->io->seek(position, dec->io->seek_data))
-                return MP3D_E_IOERROR;
+            dec->offset = position;
         } else
         {
             dec->offset = MINIMP3_MIN(position, dec->file.size);
@@ -1176,18 +1172,15 @@ int mp3dec_ex_open_cb(mp3dec_ex_t *dec, mp3dec_io_t *io, int seek_method)
     dec->seek_method = seek_method;
     dec->io = io;
     mp3dec_init(&dec->mp3d);
-    if (MP3D_SEEK_TO_SAMPLE == dec->seek_method)
-    {
-        if (io->seek(0, io->seek_data))
-            return MP3D_E_IOERROR;
-        int ret = mp3dec_iterate_cb(io, (uint8_t *)dec->file.buffer, dec->file.size, mp3dec_load_index, dec);
-        if (ret && MP3D_E_USER != ret)
-            return ret;
-        if (dec->io->seek(dec->start_offset, dec->io->seek_data))
-            return MP3D_E_IOERROR;
-        mp3dec_init(&dec->mp3d);
-        dec->buffer_samples = 0;
-    }
+    if (io->seek(0, io->seek_data))
+        return MP3D_E_IOERROR;
+    int ret = mp3dec_iterate_cb(io, (uint8_t *)dec->file.buffer, dec->file.size, mp3dec_load_index, dec);
+    if (ret && MP3D_E_USER != ret)
+        return ret;
+    if (dec->io->seek(dec->start_offset, dec->io->seek_data))
+        return MP3D_E_IOERROR;
+    mp3dec_init(&dec->mp3d);
+    dec->buffer_samples = 0;
     return 0;
 }
 

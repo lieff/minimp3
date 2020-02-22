@@ -71,6 +71,7 @@ static unsigned char *preload(FILE *file, int *data_size)
 }
 
 static int io_num, fail_io_num = -1;
+static int wave_out = 0, mode = 0, position = 0, portion = 0, seek_to_byte = 0;
 
 static size_t read_cb(void *buf, size_t size, void *user_data)
 {
@@ -123,7 +124,7 @@ static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_si
     return 0;
 }
 
-static void decode_file(const char *input_file_name, const unsigned char *buf_ref, int ref_size, FILE *file_out, const int wave_out, const int mode, int position, int portion)
+static void decode_file(const char *input_file_name, const unsigned char *buf_ref, int ref_size, FILE *file_out)
 {
     mp3dec_t mp3d;
     int i, res = -1, data_bytes, total_samples = 0, maxdiff = 0;
@@ -186,19 +187,19 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         uint8_t *buf = 0;
         if (MODE_STREAM == mode)
         {
-            res = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE);
+            res = mp3dec_ex_open(&dec, input_file_name, seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE);
         } else if (MODE_STREAM_BUF == mode)
         {
             int size = 0;
             FILE *file = fopen(input_file_name, "rb");
             buf = preload(file, &size);
             fclose(file);
-            res = buf ? mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE) : MP3D_E_IOERROR;
+            res = buf ? mp3dec_ex_open_buf(&dec, buf, size, seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE) : MP3D_E_IOERROR;
         } else if (MODE_STREAM_CB == mode)
         {
             FILE *file = fopen(input_file_name, "rb");
             io.read_data = io.seek_data = file;
-            res = file ? mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE) : MP3D_E_IOERROR;
+            res = file ? mp3dec_ex_open_cb(&dec, &io, seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE) : MP3D_E_IOERROR;
         }
         if (res)
         {
@@ -226,10 +227,13 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         {
             if (-2 == position)
                 position = 0;
-            info.samples -= MINIMP3_MIN(info.samples, (size_t)position);
-            int skip_ref = MINIMP3_MIN((size_t)ref_size, position*sizeof(int16_t));
-            buf_ref  += skip_ref;
-            ref_size -= skip_ref;
+            if (!seek_to_byte)
+            {
+                info.samples -= MINIMP3_MIN(info.samples, (size_t)position);
+                int skip_ref = MINIMP3_MIN((size_t)ref_size, position*sizeof(int16_t));
+                buf_ref  += skip_ref;
+                ref_size -= skip_ref;
+            }
             res = mp3dec_ex_seek(&dec, position);
             if (res)
             {
@@ -249,19 +253,25 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         {
             int to_read = MINIMP3_MIN(samples, portion);
             readed = mp3dec_ex_read(&dec, info.buffer + samples_readed, to_read);
+            samples -= readed;
+            samples_readed += readed;
             if (readed != (size_t)to_read)
             {
+                if (seek_to_byte && readed < (size_t)to_read)
+                    break;
                 printf("error: mp3dec_ex_read() readed less than expected, last_error=%d\n", dec.last_error);
                 exit(1);
             }
-            samples -= to_read;
-            samples_readed += to_read;
         }
         readed = mp3dec_ex_read(&dec, info.buffer, 1);
         if (readed)
         {
             printf("error: mp3dec_ex_read() readed more than expected, last_error=%d\n", dec.last_error);
             exit(1);
+        }
+        if (seek_to_byte)
+        {
+            info.samples = samples_readed;
         }
         mp3dec_ex_close(&dec);
         if (MODE_STREAM_BUF == mode && buf)
@@ -353,7 +363,7 @@ int main2(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
-    int wave_out = 0, mode = 0, position = 0, portion = 0, i, ref_size;
+    int i, ref_size;
     for(i = 1; i < argc; i++)
     {
         if (argv[i][0] != '-')
@@ -364,6 +374,7 @@ int main(int argc, char *argv[])
         case 's': i++; if (i < argc) position = atoi(argv[i]); break;
         case 'p': i++; if (i < argc) portion  = atoi(argv[i]); break;
         case 'e': i++; if (i < argc) fail_io_num = atoi(argv[i]); break;
+        case 'b': seek_to_byte = 1; break;
         default:
             printf("error: unrecognized option\n");
             return 1;
@@ -395,7 +406,7 @@ int main(int argc, char *argv[])
         printf("error: no file names given\n");
         return 1;
     }
-    decode_file(input_file_name, buf_ref, ref_size, file_out, wave_out, mode, position, portion);
+    decode_file(input_file_name, buf_ref, ref_size, file_out);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     }
 #endif
