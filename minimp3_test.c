@@ -348,6 +348,103 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
 #endif
 }
 
+static int self_test(const char *input_file_name)
+{
+    int ret, size = 0;
+    mp3dec_t mp3d;
+    mp3dec_ex_t dec;
+    mp3dec_frame_info_t frame_info;
+    mp3dec_file_info_t finfo;
+    mp3dec_io_t io;
+    FILE *file = fopen(input_file_name, "rb");
+    uint8_t *buf = preload(file, &size);
+    fclose(file);
+    int samples = mp3dec_decode_frame(&mp3d, buf, size, 0, &frame_info);
+    free(buf);
+#define ASSERT(c) if (!(c)) { printf("failed, line=%d\n", __LINE__); exit(1); }
+    ASSERT(1152 == samples);
+
+    ret = mp3dec_load_buf(0, buf, size, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load_buf(&mp3d, 0, size, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load_buf(&mp3d, buf, (size_t)-1, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load_buf(&mp3d, buf, size, 0, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_load_cb(0, &io, buf, size, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load_cb(&mp3d, &io, 0, size, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load_cb(&mp3d, &io, buf, (size_t)-1, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load_cb(&mp3d, &io, buf, size, 0, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_iterate_buf(0, size, frames_iterate_cb, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate_buf(buf, (size_t)-1, frames_iterate_cb, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate_buf(buf, size, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_iterate_cb(0, buf, size, frames_iterate_cb, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate_cb(&io, 0, size, frames_iterate_cb, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate_cb(&io, buf, (size_t)-1, frames_iterate_cb, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate_cb(&io, buf, size, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_ex_open_buf(0, buf, size, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open_buf(&dec, 0, size, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open_buf(&dec, buf, (size_t)-1, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE + 1);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_ex_open_cb(0, &io, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open_cb(&dec, 0, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE + 1);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_ex_seek(0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_ex_read(0, (mp3d_sample_t*)buf, 10);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_read(&dec, 0, 10);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_load(0, input_file_name, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load(&mp3d, 0, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load(&mp3d, input_file_name, 0, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_iterate(0, frames_iterate_cb, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate(input_file_name, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    ret = mp3dec_ex_open(0, input_file_name, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open(&dec, 0, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE + 1);
+    ASSERT(MP3D_E_PARAM == ret);
+
+    printf("passed\n");
+    return 0;
+}
+
 #ifdef LIBFUZZER
 int LLVMFuzzerTestOneInput(const uint8_t *Data, size_t Size)
 {
@@ -363,7 +460,7 @@ int main2(int argc, char *argv[])
 int main(int argc, char *argv[])
 #endif
 {
-    int i, ref_size;
+    int i, ref_size, do_self_test = 0;
     for(i = 1; i < argc; i++)
     {
         if (argv[i][0] != '-')
@@ -375,6 +472,7 @@ int main(int argc, char *argv[])
         case 'p': i++; if (i < argc) portion  = atoi(argv[i]); break;
         case 'e': i++; if (i < argc) fail_io_num = atoi(argv[i]); break;
         case 'b': seek_to_byte = 1; break;
+        case 't': do_self_test = 1; break;
         default:
             printf("error: unrecognized option\n");
             return 1;
@@ -406,6 +504,8 @@ int main(int argc, char *argv[])
         printf("error: no file names given\n");
         return 1;
     }
+    if (do_self_test)
+        return self_test(input_file_name);
     decode_file(input_file_name, buf_ref, ref_size, file_out);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     }
