@@ -69,6 +69,10 @@ set -e
 ./minimp3 -m 6 -s 633 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db_ofs633.pcm
 ./minimp3 -m 8 -s 215 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
 ./minimp3 -m 8 -s 633 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db_ofs633.pcm
+
+./minimp3 -m 6 -s 2304 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
+./minimp3 -m 8 -s 2304 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
+
 ./minimp3 -t vectors/l3-sin1k0db.bit
 
 gcov minimp3_test.c

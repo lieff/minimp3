@@ -731,7 +731,17 @@ seek_zero:
     dec->to_skip = position - dec->index.frames[i].sample;
     while ((i + 1) < dec->index.num_frames && !dec->index.frames[i].sample && !dec->index.frames[i + 1].sample)
     {   /* skip not decodable first frames */
-        const uint8_t *hdr = dec->file.buffer + dec->index.frames[i].offset;
+        const uint8_t *hdr;
+        if (dec->io)
+        {
+            hdr = dec->file.buffer;
+            if (dec->io->seek(dec->index.frames[i].offset, dec->io->seek_data))
+                return MP3D_E_IOERROR;
+            size_t readed = dec->io->read((uint8_t *)hdr, HDR_SIZE, dec->io->read_data);
+            if (readed != HDR_SIZE)
+                return MP3D_E_IOERROR;
+        } else
+            hdr = dec->file.buffer + dec->index.frames[i].offset;
         dec->to_skip += hdr_frame_samples(hdr)*dec->info.channels;
         i++;
     }
