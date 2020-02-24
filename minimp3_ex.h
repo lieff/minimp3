@@ -220,7 +220,7 @@ int mp3dec_load_buf(mp3dec_t *dec, const uint8_t *buf, size_t buf_size, mp3dec_f
 
 int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size, mp3dec_file_info_t *info, MP3D_PROGRESS_CB progress_cb, void *user_data)
 {
-    if (!dec || !buf || !info || (size_t)-1 == buf_size)
+    if (!dec || !buf || !info || (size_t)-1 == buf_size || (io && buf_size < MINIMP3_BUF_SIZE))
         return MP3D_E_PARAM;
     uint64_t detected_samples = 0;
     size_t orig_buf_size = buf_size;

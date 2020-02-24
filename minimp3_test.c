@@ -372,6 +372,9 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_load_buf(&mp3d, buf, size, 0, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
+    memset(&finfo, 0xff, sizeof(finfo));
+    ret = mp3dec_load_buf(&mp3d, buf, 0, &finfo, 0, 0);
+    ASSERT(0 == ret && 0 == finfo.samples);
 
     ret = mp3dec_load_cb(0, &io, buf, size, &finfo, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
@@ -381,6 +384,8 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_load_cb(&mp3d, &io, buf, size, 0, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load_cb(&mp3d, &io, buf, 0, &finfo, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
 
     ret = mp3dec_iterate_buf(0, size, frames_iterate_cb, 0);
     ASSERT(MP3D_E_PARAM == ret);
@@ -388,6 +393,8 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_iterate_buf(buf, size, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate_buf(buf, 0, frames_iterate_cb, 0);
+    ASSERT(0 == ret);
 
     ret = mp3dec_iterate_cb(0, buf, size, frames_iterate_cb, 0);
     ASSERT(MP3D_E_PARAM == ret);
@@ -396,6 +403,8 @@ static int self_test(const char *input_file_name)
     ret = mp3dec_iterate_cb(&io, buf, (size_t)-1, frames_iterate_cb, 0);
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_iterate_cb(&io, buf, size, 0, 0);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate_cb(&io, buf, 0, frames_iterate_cb, 0);
     ASSERT(MP3D_E_PARAM == ret);
 
     ret = mp3dec_ex_open_buf(0, buf, size, MP3D_SEEK_TO_SAMPLE);
@@ -406,6 +415,10 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE + 1);
     ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open_buf(&dec, buf, 0, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(0 == ret);
+    ret = mp3dec_ex_read(&dec, (mp3d_sample_t*)buf, 10);
+    ASSERT(0 == ret);
 
     ret = mp3dec_ex_open_cb(0, &io, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
@@ -428,11 +441,15 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_load(&mp3d, input_file_name, 0, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_load(&mp3d, "not_foud", &finfo, 0, 0);
+    ASSERT(MP3D_E_IOERROR == ret);
 
     ret = mp3dec_iterate(0, frames_iterate_cb, 0);
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_iterate(input_file_name, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_iterate("not_foud", frames_iterate_cb, 0);
+    ASSERT(MP3D_E_IOERROR == ret);
 
     ret = mp3dec_ex_open(0, input_file_name, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
@@ -440,6 +457,8 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE + 1);
     ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_ex_open(&dec, "not_foud", MP3D_SEEK_TO_SAMPLE);
+    ASSERT(MP3D_E_IOERROR == ret);
 
     printf("passed\n");
     return 0;
