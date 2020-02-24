@@ -81,6 +81,7 @@ set -e
 ./minimp3 -m 6 -s 2304 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
 ./minimp3 -m 8 -s 2304 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
 ./minimp3 -m 8 -p 2000 vectors/l3-nonstandard-sin1k0db_lame_vbrtag.bit vectors/l3-nonstandard-sin1k0db_lame_vbrtag.pcm
+./minimp3 -m 8 -p 725759 vectors/l3-nonstandard-sin1k0db_lame_vbrtag.bit vectors/l3-nonstandard-sin1k0db_lame_vbrtag.pcm
 
 ./minimp3 -t vectors/l3-sin1k0db.bit
 

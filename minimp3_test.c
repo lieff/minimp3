@@ -261,7 +261,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         while (samples)
         {
             int to_read = MINIMP3_MIN(samples, portion);
-            readed = mp3dec_ex_read(&dec, info.buffer + samples_readed, to_read);
+            readed = mp3dec_ex_read(&dec, info.buffer + samples_readed, portion);
             samples -= readed;
             samples_readed += readed;
             if (readed != (size_t)to_read)
