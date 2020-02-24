@@ -124,6 +124,15 @@ static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_si
     return 0;
 }
 
+static int progress_cb(void *user_data, size_t file_size, uint64_t offset, mp3dec_frame_info_t *info)
+{
+    (void)user_data;
+    (void)file_size;
+    (void)offset;
+    (void)info;
+    return MP3D_E_USER;
+}
+
 static void decode_file(const char *input_file_name, const unsigned char *buf_ref, int ref_size, FILE *file_out)
 {
     mp3dec_t mp3d;
@@ -372,6 +381,7 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_load_buf(&mp3d, buf, size, 0, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
+
     memset(&finfo, 0xff, sizeof(finfo));
     ret = mp3dec_load_buf(&mp3d, buf, 0, &finfo, 0, 0);
     ASSERT(0 == ret && 0 == finfo.samples);
@@ -443,6 +453,11 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_load(&mp3d, "not_foud", &finfo, 0, 0);
     ASSERT(MP3D_E_IOERROR == ret);
+
+    memset(&mp3d, 0xff, sizeof(mp3d));
+    memset(&finfo, 0xff, sizeof(finfo));
+    ret = mp3dec_load(&mp3d, input_file_name, &finfo, progress_cb, 0);
+    ASSERT(MP3D_E_USER == ret && 2304 == finfo.samples);
 
     ret = mp3dec_iterate(0, frames_iterate_cb, 0);
     ASSERT(MP3D_E_PARAM == ret);
