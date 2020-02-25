@@ -349,7 +349,10 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
         if ((allocated - info->samples*sizeof(mp3d_sample_t)) < MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t))
         {
             allocated *= 2;
-            info->buffer = (mp3d_sample_t*)realloc(info->buffer, allocated);
+            mp3d_sample_t *alloc_buf = (mp3d_sample_t*)realloc(info->buffer, allocated);
+            if (!alloc_buf)
+                return MP3D_E_MEMORY;
+            info->buffer = alloc_buf;
         }
         if (io)
         {
@@ -412,7 +415,12 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
         info->samples = detected_samples; /* cut padding */
     /* reallocate to normal buffer size */
     if (allocated != info->samples*sizeof(mp3d_sample_t))
-        info->buffer = (mp3d_sample_t*)realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
+    {
+        mp3d_sample_t *alloc_buf = (mp3d_sample_t*)realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
+        if (!alloc_buf && info->samples)
+            return MP3D_E_MEMORY;
+        info->buffer = alloc_buf;
+    }
     if (frames)
         info->avg_bitrate_kbps = avg_bitrate_kbps/frames;
     return ret;
@@ -565,9 +573,10 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
             dec->index.capacity = 4096;
         else
             dec->index.capacity *= 2;
-        dec->index.frames = (mp3dec_frame_t *)realloc((void*)dec->index.frames, sizeof(mp3dec_frame_t)*dec->index.capacity);
-        if (!dec->index.frames)
+        mp3dec_frame_t *alloc_buf = (mp3dec_frame_t *)realloc((void*)dec->index.frames, sizeof(mp3dec_frame_t)*dec->index.capacity);
+        if (!alloc_buf)
             return MP3D_E_MEMORY;
+        dec->index.frames = alloc_buf;
     }
     idx_frame = &dec->index.frames[dec->index.num_frames++];
     idx_frame->offset = offset;

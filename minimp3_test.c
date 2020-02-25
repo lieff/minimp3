@@ -1,15 +1,36 @@
+#ifdef MINIMP3_TEST
+static int malloc_num = 0, fail_malloc_num = -1;
 #include <stdio.h>
 #include <stdlib.h>
-static int malloc_num = 0, fail_malloc_num = -1;
+#include <sys/mman.h>
 static void *local_malloc(size_t size)
 {
-    /*printf("%d malloc_num(%d)\n", malloc_num, (int)size);*/
+    /*printf("%d malloc(%d)\n", malloc_num, (int)size);*/
     if (fail_malloc_num == malloc_num)
         return 0;
     malloc_num++;
     return malloc(size);
 }
 #define malloc local_malloc
+void *local_realloc(void *ptr, size_t new_size)
+{
+    /*printf("%d realloc(%d)\n", malloc_num, (int)new_size);*/
+    if (fail_malloc_num == malloc_num)
+        return 0;
+    malloc_num++;
+    return realloc(ptr, new_size);
+}
+#define realloc local_realloc
+void *local_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t offset)
+{
+    /*printf("%d mmap(%d)\n", malloc_num, (int)length);*/
+    if (fail_malloc_num == malloc_num)
+        return MAP_FAILED;
+    malloc_num++;
+    return mmap(addr, length, prot, flags, fd, offset);
+}
+#define mmap local_mmap
+#endif
 
 /*#define MINIMP3_ONLY_MP3*/
 /*#define MINIMP3_ONLY_SIMD*/
@@ -132,7 +153,10 @@ static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_si
             d->allocated = 1024*1024;
         else
             d->allocated *= 2;
-        d->info->buffer = realloc(d->info->buffer, d->allocated);
+        mp3d_sample_t *alloc_buf = realloc(d->info->buffer, d->allocated);
+        if (!alloc_buf)
+            return MP3D_E_MEMORY;
+        d->info->buffer = alloc_buf;
     }
     int samples = mp3dec_decode_frame(d->mp3d, frame, frame_size, d->info->buffer + d->info->samples, info);
     if (samples)
@@ -527,7 +551,9 @@ int main(int argc, char *argv[])
         case 's': i++; if (i < argc) position = atoi(argv[i]); break;
         case 'p': i++; if (i < argc) portion  = atoi(argv[i]); break;
         case 'e': i++; if (i < argc) fail_io_num = atoi(argv[i]); break;
+#ifdef MINIMP3_TEST
         case 'f': i++; if (i < argc) fail_malloc_num = atoi(argv[i]); break;
+#endif
         case 'b': seek_to_byte = 1; break;
         case 't': do_self_test = 1; break;
         default:
