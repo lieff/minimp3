@@ -115,18 +115,16 @@ static int wave_out = 0, mode = 0, position = 0, portion = 0, seek_to_byte = 0;
 static size_t read_cb(void *buf, size_t size, void *user_data)
 {
     /*printf("%d read_cb(%d)\n", io_num, (int)size);*/
-    if (fail_io_num == io_num)
+    if (fail_io_num == io_num++)
         return -1;
-    io_num++;
     return fread(buf, 1, size, (FILE*)user_data);
 }
 
 static int seek_cb(uint64_t position, void *user_data)
 {
     /*printf("%d seek_cb(%d)\n", io_num, (int)position);*/
-    if (fail_io_num == io_num)
+    if (fail_io_num == io_num++)
         return -1;
-    io_num++;
     return fseek((FILE*)user_data, position, SEEK_SET);
 }
 
@@ -503,7 +501,9 @@ static int self_test(const char *input_file_name)
     memset(&mp3d, 0xff, sizeof(mp3d));
     memset(&finfo, 0xff, sizeof(finfo));
     ret = mp3dec_load(&mp3d, input_file_name, &finfo, progress_cb, 0);
-    ASSERT(MP3D_E_USER == ret && 2304 == finfo.samples);
+    ASSERT(MP3D_E_USER == ret && 2304 == finfo.samples && 44100 == finfo.hz && 2 == finfo.channels && 3 == finfo.layer);
+    ASSERT(NULL != finfo.buffer);
+    free(finfo.buffer);
 
     ret = mp3dec_iterate(0, frames_iterate_cb, 0);
     ASSERT(MP3D_E_PARAM == ret);
@@ -520,6 +520,30 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open(&dec, "not_foud", MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_IOERROR == ret);
+
+    file = fopen(input_file_name, "rb");
+    io.read = read_cb;
+    io.seek = seek_cb;
+    io.read_data = io.seek_data = file;
+
+    ret = mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE);
+    ASSERT(0 == ret);
+    ASSERT(5 == io_num);
+    fail_io_num = 5;
+    mp3d_sample_t sample;
+    size_t readed = mp3dec_ex_read(&dec, &sample, 1);
+    ASSERT(0 == readed);
+    ASSERT(MP3D_E_IOERROR == dec.last_error);
+    readed = mp3dec_ex_read(&dec, &sample, 1);
+    ASSERT(0 == readed);
+    ASSERT(MP3D_E_IOERROR == dec.last_error); /* stays in error state */
+    ret = mp3dec_ex_seek(&dec, 0);
+    ASSERT(0 == ret);
+    ASSERT(0 == dec.last_error); /* error state reset */
+    readed = mp3dec_ex_read(&dec, &sample, 1);
+    ASSERT(1 == readed);
+    mp3dec_ex_close(&dec);
+    fclose((FILE*)io.read_data);
 
     printf("passed\n");
     return 0;

@@ -810,7 +810,10 @@ size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
                 dec->input_consumed = 0;
                 size_t readed = dec->io->read((uint8_t*)dec->file.buffer + dec->input_filled, dec->file.size - dec->input_filled, dec->io->read_data);
                 if (readed > (dec->file.size - dec->input_filled))
+                {
                     dec->last_error = MP3D_E_IOERROR;
+                    readed = 0;
+                }
                 if (readed != (dec->file.size - dec->input_filled))
                     eof = 1;
                 dec->input_filled += readed;

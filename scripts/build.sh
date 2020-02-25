@@ -54,7 +54,7 @@ rm temp.pcm
 [[ "$(./minimp3 -m 8 -e 2 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-3 failed" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 8 -e 3 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-3 failed" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 8 -e 4 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-3 failed" ]] && echo fail && exit 1 || echo pass
-[[ "$(./minimp3 -m 8 -e 5 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_read() readed less than expected, last_error=-5" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 8 -e 5 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_read() readed less than expected, last_error=-3" ]] && echo fail && exit 1 || echo pass
 
 [[ "$(./minimp3 -m 8 -s 2304 -e 5 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_seek()=-3 failed" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 8 -s 2304 -e 6 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_seek()=-3 failed" ]] && echo fail && exit 1 || echo pass
