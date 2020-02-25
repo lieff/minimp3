@@ -71,6 +71,11 @@ rm temp.pcm
 
 [[ "$(./minimp3 -m 6 -s 215 -b vectors/l3-sin1k0db.bit -)" != "rate=44100 samples=725760 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 6 -s 633 -b vectors/l3-sin1k0db.bit -)" != "rate=44100 samples=723456 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
+
+[[ "$(./minimp3 -f 0 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm)" != "error: not enough memory" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -f 1 vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm)" != "error: read function failed, code=-2" ]] && echo fail && exit 1 || echo pass
+
+[[ "$(./minimp3 -m 8 -f 0 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-2 failed" ]] && echo fail && exit 1 || echo pass
 set -e
 
 ./minimp3 -m 6 -s 215 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm

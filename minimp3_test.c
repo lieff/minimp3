@@ -1,3 +1,16 @@
+#include <stdio.h>
+#include <stdlib.h>
+static int malloc_num = 0, fail_malloc_num = -1;
+static void *local_malloc(size_t size)
+{
+    /*printf("%d malloc_num(%d)\n", malloc_num, (int)size);*/
+    if (fail_malloc_num == malloc_num)
+        return 0;
+    malloc_num++;
+    return malloc(size);
+}
+#define malloc local_malloc
+
 /*#define MINIMP3_ONLY_MP3*/
 /*#define MINIMP3_ONLY_SIMD*/
 /*#define MINIMP3_NONSTANDARD_BUT_LOGICAL*/
@@ -63,8 +76,13 @@ static unsigned char *preload(FILE *file, int *data_size)
     if (fseek(file, 0, SEEK_SET))
         return 0;
     data = (unsigned char*)malloc(*data_size);
-    if (!data)
-        return 0;
+#define FAIL_MEM(data) \
+    if (!(data)) \
+    { \
+        printf("error: not enough memory\n"); \
+        exit(1); \
+    }
+    FAIL_MEM(data);
     if ((int)fread(data, 1, *data_size, file) != *data_size)
         exit(1);
     return data;
@@ -159,6 +177,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     } else if (MODE_LOAD_CB == mode)
     {
         uint8_t *io_buf = malloc(MINIMP3_IO_SIZE);
+        FAIL_MEM(io_buf);
         FILE *file = fopen(input_file_name, "rb");
         io.read_data = io.seek_data = file;
         res = file ? mp3dec_load_cb(&mp3d, &io, io_buf, MINIMP3_IO_SIZE, &info, 0, 0) : MP3D_E_IOERROR;
@@ -182,6 +201,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     } else if (MODE_ITERATE_CB == mode)
     {
         uint8_t *io_buf = malloc(MINIMP3_IO_SIZE);
+        FAIL_MEM(io_buf);
         FILE *file = fopen(input_file_name, "rb");
         io.read_data = io.seek_data = file;
         frames_iterate_data d = { &mp3d, &info, 0 };
@@ -217,6 +237,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         }
         info.samples = dec.samples;
         info.buffer  = malloc(dec.samples*sizeof(mp3d_sample_t));
+        FAIL_MEM(info.buffer);
         info.hz      = dec.info.hz;
         info.layer   = dec.info.layer;
         info.channels = dec.info.channels;
@@ -299,6 +320,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     }
 #ifdef MINIMP3_FLOAT_OUTPUT
     int16_t *buffer = malloc(info.samples*sizeof(int16_t));
+    FAIL_MEM(buffer);
     mp3dec_f32_to_s16(info.buffer, buffer, info.samples);
     free(info.buffer);
 #else
@@ -505,6 +527,7 @@ int main(int argc, char *argv[])
         case 's': i++; if (i < argc) position = atoi(argv[i]); break;
         case 'p': i++; if (i < argc) portion  = atoi(argv[i]); break;
         case 'e': i++; if (i < argc) fail_io_num = atoi(argv[i]); break;
+        case 'f': i++; if (i < argc) fail_malloc_num = atoi(argv[i]); break;
         case 'b': seek_to_byte = 1; break;
         case 't': do_self_test = 1; break;
         default:
