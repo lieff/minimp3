@@ -34,6 +34,7 @@ set +e
 [[ "$(./minimp3)" != "error: no file names given" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 do_not_exist)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -z)" != "error: unrecognized option" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m -1 vectors/l3-sin1k0db.bit)" != "error: unknown mode" ]] && echo fail && exit 1 || echo pass
 [[ ! "$(./minimp3 vectors/l3-nonstandard-id3v1.bit vectors/ILL2_mono.pcm)" =~ "rate=48000 samples=1152 max_diff=17637 PSNR=15" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 vectors/l3-nonstandard-id3v1.bit - temp.pcm)" != "rate=48000 samples=1152 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
 rm temp.pcm
@@ -81,6 +82,8 @@ rm temp.pcm
 [[ "$(./minimp3 -m 2 -f 1 vectors/l3-sin1k0db.bit)" != "error: read function failed, code=-2" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 2 -f 2 vectors/l3-sin1k0db.bit)" != "error: read function failed, code=-2" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 2 -f 3 vectors/l3-sin1k0db.bit)" != "error: read function failed, code=-2" ]] && echo fail && exit 1 || echo pass
+
+[[ "$(./minimp3 -m 3 -f 1 vectors/l3-sin1k0db.bit)" != "error: read function failed, code=-2" ]] && echo fail && exit 1 || echo pass
 
 [[ "$(./minimp3 -m 6 -f 1 vectors/l3-sin1k0db.bit)" != "error: mp3dec_ex_open()=-2 failed" ]] && echo fail && exit 1 || echo pass
 
