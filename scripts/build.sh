@@ -93,6 +93,7 @@ rm temp.pcm
 [[ "$(./minimp3 -m 8 -s 1 vectors/l3-nonstandard-vbrtag-only.bit)" != "error: mp3dec_ex_read() readed less than expected, last_error=0" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 8 -s 1 -e 4 vectors/l3-nonstandard-vbrtag-only.bit)" != "error: mp3dec_ex_seek()=-3 failed" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 8 -s 1 -e 5 vectors/l3-nonstandard-vbrtag-only.bit)" != "error: mp3dec_ex_seek()=-3 failed" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 6 -s 1 -f 2 vectors/l3-nonstandard-sin1k0db_lame_vbrtag.bit)" != "error: mp3dec_ex_seek()=-2 failed" ]] && echo fail && exit 1 || echo pass
 set -e
 
 ./minimp3 -m 6 -s 215 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm
