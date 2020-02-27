@@ -548,7 +548,7 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
 {
     mp3dec_frame_t *idx_frame;
     mp3dec_ex_t *dec = (mp3dec_ex_t *)user_data;
-    if (!dec->index.frames && !dec->vbr_tag_found)
+    if (!dec->index.frames && !dec->start_offset)
     {   /* detect VBR tag and try to avoid full scan */
         uint32_t frames;
         int delay, padding;
