@@ -118,10 +118,10 @@ static void mp3dec_skip_id3v1(const uint8_t *buf, size_t *pbuf_size)
 {
     size_t buf_size = *pbuf_size;
 #ifndef MINIMP3_NOSKIP_ID3V1
-    if (buf_size > 128 && !memcmp(buf + buf_size - 128, "TAG", 3))
+    if (buf_size >= 128 && !memcmp(buf + buf_size - 128, "TAG", 3))
     {
         buf_size -= 128;
-        if (buf_size > 227 && !memcmp(buf + buf_size - 227, "TAG+", 4))
+        if (buf_size >= 227 && !memcmp(buf + buf_size - 227, "TAG+", 4))
             buf_size -= 227;
     }
 #endif
@@ -129,6 +129,10 @@ static void mp3dec_skip_id3v1(const uint8_t *buf, size_t *pbuf_size)
     if (buf_size > 32 && !memcmp(buf + buf_size - 32, "APETAGEX", 8))
     {
         buf_size -= 32;
+        const uint8_t *tag = buf + buf_size + 8 + 4;
+        uint32_t tag_size = (uint32_t)(tag[3] << 24) | (tag[2] << 16) | (tag[1] << 8) | tag[0];
+        if (buf_size >= tag_size)
+            buf_size -= tag_size;
     }
 #endif
     *pbuf_size = buf_size;
