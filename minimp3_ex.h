@@ -312,6 +312,8 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
         frame_info.bitrate_kbps = hdr_bitrate_kbps(hdr);
         frame_info.frame_bytes = frame_size;
         samples = hdr_frame_samples(hdr)*frame_info.channels;
+        if (3 != frame_info.layer)
+            break;
         int ret = mp3dec_check_vbrtag(hdr, frame_size, &frames, &delay, &padding);
         if (ret > 0)
         {
@@ -560,23 +562,26 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
         dec->start_offset = dec->offset = offset;
         dec->end_offset   = offset + buf_size;
         dec->free_format_bytes = free_format_bytes; /* should not change */
-        int ret = mp3dec_check_vbrtag(frame, frame_size, &frames, &delay, &padding);
-        if (ret)
-            dec->start_offset = dec->offset = offset + frame_size;
-        if (ret > 0)
+        if (3 == dec->info.layer)
         {
-            padding *= info->channels;
-            dec->start_delay = dec->to_skip = delay*info->channels;
-            dec->samples = hdr_frame_samples(frame)*info->channels*(uint64_t)frames;
-            if (dec->samples >= (uint64_t)dec->start_delay)
-                dec->samples -= dec->start_delay;
-            if (padding > 0 && dec->samples >= (uint64_t)padding)
-                dec->samples -= padding;
-            dec->detected_samples = dec->samples;
-            dec->vbr_tag_found = 1;
-            return MP3D_E_USER;
-        } else if (ret < 0)
-            return 0;
+            int ret = mp3dec_check_vbrtag(frame, frame_size, &frames, &delay, &padding);
+            if (ret)
+                dec->start_offset = dec->offset = offset + frame_size;
+            if (ret > 0)
+            {
+                padding *= info->channels;
+                dec->start_delay = dec->to_skip = delay*info->channels;
+                dec->samples = hdr_frame_samples(frame)*info->channels*(uint64_t)frames;
+                if (dec->samples >= (uint64_t)dec->start_delay)
+                    dec->samples -= dec->start_delay;
+                if (padding > 0 && dec->samples >= (uint64_t)padding)
+                    dec->samples -= padding;
+                dec->detected_samples = dec->samples;
+                dec->vbr_tag_found = 1;
+                return MP3D_E_USER;
+            } else if (ret < 0)
+                return 0;
+        }
     }
     if (dec->index.num_frames + 1 > dec->index.capacity)
     {
