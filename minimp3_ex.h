@@ -239,9 +239,9 @@ int mp3dec_detect_cb(mp3dec_io_t *io, uint8_t *buf, size_t buf_size)
         filled = io->read(buf, MINIMP3_ID3_DETECT_SIZE, io->read_data);
         if (filled > MINIMP3_ID3_DETECT_SIZE)
             return MP3D_E_IOERROR;
-        if (MINIMP3_ID3_DETECT_SIZE != filled)
-            return MP3D_E_USER;
     }
+    if (filled < MINIMP3_ID3_DETECT_SIZE)
+        return MP3D_E_USER; /* too small, can't be mp3/mpa */
     if (mp3dec_skip_id3v2(buf, filled))
         return 0; /* id3v2 tag is enough evidence */
     if (io)
@@ -259,7 +259,7 @@ int mp3dec_detect_cb(mp3dec_io_t *io, uint8_t *buf, size_t buf_size)
             filled = MINIMP3_BUF_SIZE;
     }
     int free_format_bytes, frame_size;
-    mp3d_find_frame(buf, MINIMP3_MIN(filled, (size_t)INT_MAX), &free_format_bytes, &frame_size);
+    mp3d_find_frame(buf, filled, &free_format_bytes, &frame_size);
     if (frame_size)
         return 0; /* MAX_FRAME_SYNC_MATCHES consecutive frames found */
     return MP3D_E_USER;

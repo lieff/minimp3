@@ -102,6 +102,12 @@ rm temp.pcm
 # Delay and padding usage can be implemented if such software/files exists.
 [[ "$(./minimp3 vectors/l3-nonstandard-vbrtag-noframes.bit)" != "rate=44100 samples=0 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 -m 6 vectors/l3-nonstandard-vbrtag-noframes.bit)" != "rate=44100 samples=0 max_diff=0 PSNR=99.000000" ]] && echo fail && exit 1 || echo pass
+
+[[ "$(./minimp3 -m 9 vectors/l3-sin1k0db.pcm)" != "info: not an mp3/mpa file" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 9 vectors/l3-nonstandard-small.bit)" != "info: not an mp3/mpa file" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 11 -e 0 vectors/l3-sin1k0db.bit)" != "error: mp3dec_detect*()=-3 failed" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 11 -e 1 vectors/l3-sin1k0db.bit)" != "error: mp3dec_detect*()=-3 failed" ]] && echo fail && exit 1 || echo pass
+[[ "$(./minimp3 -m 11 -e 2 vectors/l3-sin1k0db.bit)" != "error: mp3dec_detect*()=-3 failed" ]] && echo fail && exit 1 || echo pass
 set -e
 
 ./minimp3 -m 6 -s 215 -b vectors/l3-sin1k0db.bit vectors/l3-sin1k0db.pcm

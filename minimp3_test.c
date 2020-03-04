@@ -452,6 +452,11 @@ static int self_test(const char *input_file_name)
 #define ASSERT(c) if (!(c)) { printf("failed, line=%d\n", __LINE__); exit(1); }
     ASSERT(1152 == samples);
 
+    ret = mp3dec_detect_buf(0, size);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_detect_buf(buf, (size_t)-1);
+    ASSERT(MP3D_E_PARAM == ret);
+
     ret = mp3dec_load_buf(0, buf, size, &finfo, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_load_buf(&mp3d, 0, size, &finfo, 0, 0);
@@ -464,6 +469,11 @@ static int self_test(const char *input_file_name)
     memset(&finfo, 0xff, sizeof(finfo));
     ret = mp3dec_load_buf(&mp3d, buf, 0, &finfo, 0, 0);
     ASSERT(0 == ret && 0 == finfo.samples);
+
+    ret = mp3dec_detect_cb(&io, 0, size);
+    ASSERT(MP3D_E_PARAM == ret);
+    ret = mp3dec_detect_cb(&io, buf, (size_t)-1);
+    ASSERT(MP3D_E_PARAM == ret);
 
     ret = mp3dec_load_cb(0, &io, buf, size, &finfo, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
