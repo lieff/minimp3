@@ -30,6 +30,9 @@ scripts/test_mode.sh 8 -1 -1
 scripts/test_mode.sh 6 -2 -1
 scripts/test_mode.sh 7 -2 -1
 scripts/test_mode.sh 8 -2 -1
+scripts/test_mode.sh 9 0 0
+scripts/test_mode.sh 10 0 0
+scripts/test_mode.sh 11 0 0
 set +e
 [[ "$(./minimp3)" != "error: no file names given" ]] && echo fail && exit 1 || echo pass
 [[ "$(./minimp3 do_not_exist)" != "error: read function failed, code=-3" ]] && echo fail && exit 1 || echo pass

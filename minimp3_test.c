@@ -57,6 +57,9 @@ void *local_mmap(void *addr, size_t length, int prot, int flags, int fd, off_t o
 #define MODE_STREAM     6
 #define MODE_STREAM_BUF 7
 #define MODE_STREAM_CB  8
+#define MODE_DETECT     9
+#define MODE_DETECT_BUF 10
+#define MODE_DETECT_CB  11
 
 static int16_t read16le(const void *p)
 {
@@ -178,6 +181,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     mp3dec_t mp3d;
     int i, res = -1, data_bytes, total_samples = 0, maxdiff = 0;
     int no_std_vec = strstr(input_file_name, "nonstandard") || strstr(input_file_name, "ILL");
+    uint8_t *buf = 0;
     double MSE = 0.0, psnr;
 
     mp3dec_io_t io;
@@ -235,7 +239,6 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     {
         mp3dec_ex_t dec;
         size_t readed;
-        uint8_t *buf = 0;
         if (MODE_STREAM == mode)
         {
             res = mp3dec_ex_open(&dec, input_file_name, seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE);
@@ -330,6 +333,38 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
             free(buf);
         if (MODE_STREAM_CB == mode)
             fclose((FILE*)io.read_data);
+    } else if (MODE_DETECT == mode || MODE_DETECT_BUF == mode || MODE_DETECT_CB == mode)
+    {
+        if (MODE_DETECT == mode)
+        {
+            res = mp3dec_detect(input_file_name);
+        } else if (MODE_DETECT_BUF == mode)
+        {
+            int size = 0;
+            FILE *file = fopen(input_file_name, "rb");
+            buf = preload(file, &size);
+            fclose(file);
+            res = buf ? mp3dec_detect_buf(buf, size) : MP3D_E_IOERROR;
+        } else if (MODE_DETECT_CB == mode)
+        {
+            uint8_t *io_buf = malloc(MINIMP3_BUF_SIZE);
+            FAIL_MEM(io_buf);
+            FILE *file = fopen(input_file_name, "rb");
+            io.read_data = io.seek_data = file;
+            res = file ? mp3dec_detect_cb(&io, io_buf, MINIMP3_BUF_SIZE) : MP3D_E_IOERROR;
+            free(io_buf);
+        }
+        if (MP3D_E_USER == res)
+        {
+            printf("info: not an mp3/mpa file\n");
+            exit(1);
+        } else if (res)
+        {
+            printf("error: mp3dec_detect*()=%d failed\n", res);
+            exit(1);
+        }
+        printf("info: mp3/mpa file detected\n");
+        exit(0);
     } else
     {
         printf("error: unknown mode\n");
