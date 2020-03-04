@@ -255,6 +255,8 @@ int mp3dec_detect_cb(mp3dec_io_t *io, uint8_t *buf, size_t buf_size)
     } else
     {
         mp3dec_skip_id3v1(buf, &filled);
+        if (filled > MINIMP3_BUF_SIZE)
+            filled = MINIMP3_BUF_SIZE;
     }
     int free_format_bytes, frame_size;
     mp3d_find_frame(buf, MINIMP3_MIN(filled, (size_t)INT_MAX), &free_format_bytes, &frame_size);
