@@ -191,6 +191,16 @@ static int have_simd()
 #define HAVE_SIMD 0
 #endif /* !defined(MINIMP3_NO_SIMD) */
 
+#if defined(__ARM_ARCH) && (__ARM_ARCH >= 6) && !defined(__aarch64__)
+#define HAVE_ARMV6 1
+static __inline__ __attribute__((always_inline)) int32_t minimp3_clip_int16_arm(int32_t a)
+{
+    int32_t x = 0;
+    __asm__ ("ssat %0, #16, %1" : "=r"(x) : "r"(a));
+    return x;
+}
+#endif
+
 typedef struct
 {
     const uint8_t *buf;
@@ -1407,10 +1417,16 @@ static void mp3d_DCT_II(float *grbuf, int n)
 #ifndef MINIMP3_FLOAT_OUTPUT
 static int16_t mp3d_scale_pcm(float sample)
 {
+#if HAVE_ARMV6
+    int32_t s32 = (int32_t)(sample + .5f);
+    s32 -= (s32 < 0);
+    int16_t s = (int16_t)minimp3_clip_int16_arm(s32);
+#else
     if (sample >=  32766.5) return (int16_t) 32767;
     if (sample <= -32767.5) return (int16_t)-32768;
     int16_t s = (int16_t)(sample + .5f);
     s -= (s < 0);   /* away from zero, to be compliant */
+#endif
     return s;
 }
 #else /* MINIMP3_FLOAT_OUTPUT */
