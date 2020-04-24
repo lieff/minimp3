@@ -512,18 +512,19 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open_buf(&dec, buf, (size_t)-1, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
-    ret = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE + 1);
+    ret = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE | (1 << 2));
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open_buf(&dec, buf, 0, MP3D_SEEK_TO_SAMPLE);
     ASSERT(0 == ret);
     ret = mp3dec_ex_read(&dec, (mp3d_sample_t*)buf, 10);
     ASSERT(0 == ret);
+    mp3dec_ex_close(&dec);
 
     ret = mp3dec_ex_open_cb(0, &io, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open_cb(&dec, 0, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
-    ret = mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE + 1);
+    ret = mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE | (1 << 2));
     ASSERT(MP3D_E_PARAM == ret);
 
     ret = mp3dec_ex_seek(0, 0);
@@ -561,7 +562,7 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open(&dec, 0, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
-    ret = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE + 1);
+    ret = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE | (1 << 2));
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open(&dec, "not_foud", MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_IOERROR == ret);
@@ -574,6 +575,7 @@ static int self_test(const char *input_file_name)
     ret = mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE);
     ASSERT(0 == ret);
     ASSERT(5 == io_num);
+    ASSERT(725760 == dec.samples); /* num samples detected */
     fail_io_num = 5;
     mp3d_sample_t sample;
     size_t readed = mp3dec_ex_read(&dec, &sample, 1);
@@ -588,8 +590,15 @@ static int self_test(const char *input_file_name)
     readed = mp3dec_ex_read(&dec, &sample, 1);
     ASSERT(1 == readed);
     mp3dec_ex_close(&dec);
-    fclose((FILE*)io.read_data);
 
+    ret = mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE | MP3D_DO_NOT_SCAN);
+    ASSERT(0 == ret);
+    ASSERT(0 == dec.samples); /* num samples do not detected because of MP3D_DO_NOT_SCAN */
+    readed = mp3dec_ex_read(&dec, &sample, 1);
+    ASSERT(1 == readed);
+    mp3dec_ex_close(&dec);
+
+    fclose((FILE*)io.read_data);
     printf("passed\n");
     return 0;
 }
