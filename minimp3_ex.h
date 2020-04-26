@@ -73,7 +73,7 @@ typedef struct
     mp3dec_frame_info_t info;
     mp3d_sample_t buffer[MINIMP3_MAX_SAMPLES_PER_FRAME];
     size_t input_consumed, input_filled;
-    int is_file, flags, vbr_tag_found;
+    int is_file, flags, vbr_tag_found, indexes_built;
     int free_format_bytes;
     int buffer_samples, buffer_consumed, to_skip, start_delay;
     int last_error;
@@ -675,6 +675,8 @@ int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, in
         return ret;
     mp3dec_init(&dec->mp3d);
     dec->buffer_samples = 0;
+    dec->indexes_built = !(dec->vbr_tag_found || (flags & MP3D_DO_NOT_SCAN));
+    dec->flags &= (~MP3D_DO_NOT_SCAN);
     return 0;
 }
 
@@ -728,8 +730,9 @@ seek_zero:
         dec->to_skip = 0;
         goto do_exit;
     }
-    if (!dec->index.frames && dec->vbr_tag_found)
-    {   /* no index created yet (vbr tag used to calculate track length) */
+    if (!dec->indexes_built)
+    {   /* no index created yet (vbr tag used to calculate track length or MP3D_DO_NOT_SCAN open flag used) */
+        dec->indexes_built = 1;
         dec->samples = 0;
         dec->buffer_samples = 0;
         if (dec->io)
@@ -1291,6 +1294,8 @@ int mp3dec_ex_open_cb(mp3dec_ex_t *dec, mp3dec_io_t *io, int flags)
         return MP3D_E_IOERROR;
     mp3dec_init(&dec->mp3d);
     dec->buffer_samples = 0;
+    dec->indexes_built = !(dec->vbr_tag_found || (flags & MP3D_DO_NOT_SCAN));
+    dec->flags &= (~MP3D_DO_NOT_SCAN);
     return 0;
 }
 
