@@ -113,6 +113,13 @@ may cause false sync and can produce 'squealing' artefacts. The bigger the size
 of the input buffer, the more reliable the sync procedure. We recommend having
 as many as 10 consecutive MP3 frames (~16KB) in the input buffer at a time.
 
+At end of stream just pass rest of the buffer, sync procedure should work even
+with just 1 frame in stream (except for free format and garbage at the end can
+mess things up, so id3v1 and ape tags must be removed first).
+
+For free format there minimum 3 frames needed to do proper sync: 2 frames to
+detect frame length and 1 next frame to check detect is good.
+
 The size of the consumed MP3 data is returned in the ``mp3dec_frame_info_t``
 field of the ``frame_bytes`` struct; you must remove the data corresponding to
 the ``frame_bytes`` field  from the input buffer before the next decoder
