@@ -291,6 +291,7 @@ Example of file decoding with seek capability:
  * https://github.com/johangu/node-minimp3 - NodeJS bindings
  * https://github.com/pyminimp3/pyminimp3 - python bindings
  * https://github.com/bashi/minimp3-wasm - wasm bindings
+ * https://github.com/DasZiesel/minimp3-delphi - delphi bindings
 
 ## Interesting links
 
