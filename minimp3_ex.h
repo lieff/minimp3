@@ -460,7 +460,7 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
                 size_t skip = MINIMP3_MIN(samples, to_skip);
                 to_skip -= skip;
                 samples -= skip;
-                memmove(info->buffer, info->buffer + skip, samples);
+                memmove(info->buffer, info->buffer + skip, samples*sizeof(mp3d_sample_t));
             }
             info->samples += samples;
             avg_bitrate_kbps += frame_info.bitrate_kbps;
