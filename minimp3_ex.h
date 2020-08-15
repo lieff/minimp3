@@ -844,8 +844,6 @@ do_exit:
 
 size_t mp3dec_ex_read(mp3dec_ex_t *dec, mp3d_sample_t *buf, size_t samples)
 {
-    if (!dec || !buf)
-        return MP3D_E_PARAM;
     uint64_t end_offset = dec->end_offset ? dec->end_offset : dec->file.size;
     size_t samples_requested = samples;
     int eof = 0;
