@@ -898,9 +898,7 @@ size_t mp3dec_ex_read_frame(mp3dec_ex_t *dec, mp3d_sample_t **buf, size_t max_sa
         }
         dec->buffer_consumed = 0;
         if (dec->info.hz != frame_info.hz || dec->info.layer != frame_info.layer
-#ifndef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
             || dec->info.channels != frame_info.channels
-#endif
             )
         {
             dec->last_error = MP3D_E_DECODE;
