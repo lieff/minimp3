@@ -292,6 +292,7 @@ Example of file decoding with seek capability:
  * https://github.com/pyminimp3/pyminimp3 - python bindings
  * https://github.com/bashi/minimp3-wasm - wasm bindings
  * https://github.com/DasZiesel/minimp3-delphi - delphi bindings
+ * https://github.com/mgeier/minimp3_ex-sys - low-level rust bindings to `minimp3_ex`
 
 ## Interesting links
 
