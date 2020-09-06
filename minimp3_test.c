@@ -534,9 +534,11 @@ static int self_test(const char *input_file_name)
     ASSERT(0 == ret); /* invalid param case, no decoder structure to report an error */
     ret = mp3dec_ex_read(&dec, 0, 10);
     ASSERT(0 == ret && MP3D_E_PARAM == dec.last_error); /* invalid param case */
-    ret = mp3dec_ex_read_frame(0, (mp3d_sample_t**)buf, 10);
+    ret = mp3dec_ex_read_frame(0, (mp3d_sample_t**)buf, &frame_info, 10);
     ASSERT(0 == ret); /* invalid param case, no decoder structure to report an error */
-    ret = mp3dec_ex_read_frame(&dec, 0, 10);
+    ret = mp3dec_ex_read_frame(&dec, 0, &frame_info, 10);
+    ASSERT(0 == ret && MP3D_E_PARAM == dec.last_error); /* invalid param case */
+    ret = mp3dec_ex_read_frame(&dec, (mp3d_sample_t**)buf, 0, 10);
     ASSERT(0 == ret && MP3D_E_PARAM == dec.last_error); /* invalid param case */
 
     ret = mp3dec_load(0, input_file_name, &finfo, 0, 0);
