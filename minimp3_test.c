@@ -241,19 +241,19 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         size_t readed;
         if (MODE_STREAM == mode)
         {
-            res = mp3dec_ex_open(&dec, input_file_name, seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE);
+            res = mp3dec_ex_open(&dec, input_file_name, (seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE) | MP3D_ALLOW_MONO_STEREO_TRANSITION);
         } else if (MODE_STREAM_BUF == mode)
         {
             int size = 0;
             FILE *file = fopen(input_file_name, "rb");
             buf = preload(file, &size);
             fclose(file);
-            res = buf ? mp3dec_ex_open_buf(&dec, buf, size, seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE) : MP3D_E_IOERROR;
+            res = buf ? mp3dec_ex_open_buf(&dec, buf, size, (seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE) | MP3D_ALLOW_MONO_STEREO_TRANSITION) : MP3D_E_IOERROR;
         } else if (MODE_STREAM_CB == mode)
         {
             FILE *file = fopen(input_file_name, "rb");
             io.read_data = io.seek_data = file;
-            res = file ? mp3dec_ex_open_cb(&dec, &io, seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE) : MP3D_E_IOERROR;
+            res = file ? mp3dec_ex_open_cb(&dec, &io, (seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE) | MP3D_ALLOW_MONO_STEREO_TRANSITION) : MP3D_E_IOERROR;
         }
         if (res)
         {
@@ -512,7 +512,7 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open_buf(&dec, buf, (size_t)-1, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
-    ret = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE | (1 << 2));
+    ret = mp3dec_ex_open_buf(&dec, buf, size, MP3D_SEEK_TO_SAMPLE | (MP3D_FLAGS_MASK + 1));
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open_buf(&dec, buf, 0, MP3D_SEEK_TO_SAMPLE);
     ASSERT(0 == ret);
@@ -524,7 +524,7 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open_cb(&dec, 0, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
-    ret = mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE | (1 << 2));
+    ret = mp3dec_ex_open_cb(&dec, &io, MP3D_SEEK_TO_SAMPLE | (MP3D_FLAGS_MASK + 1));
     ASSERT(MP3D_E_PARAM == ret);
 
     ret = mp3dec_ex_seek(0, 0);
@@ -566,7 +566,7 @@ static int self_test(const char *input_file_name)
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open(&dec, 0, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
-    ret = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE | (1 << 2));
+    ret = mp3dec_ex_open(&dec, input_file_name, MP3D_SEEK_TO_SAMPLE | (MP3D_FLAGS_MASK + 1));
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open(&dec, "not_foud", MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_IOERROR == ret);

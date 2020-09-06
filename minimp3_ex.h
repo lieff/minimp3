@@ -12,6 +12,12 @@
 #define MP3D_SEEK_TO_BYTE   0      /* mp3dec_ex_seek seeks to byte in stream */
 #define MP3D_SEEK_TO_SAMPLE 1      /* mp3dec_ex_seek precisely seeks to sample using index (created during duration calculation scan or when mp3dec_ex_seek called) */
 #define MP3D_DO_NOT_SCAN    2      /* do not scan whole stream for duration if vbrtag not found, mp3dec_ex_t::samples will be filled only if mp3dec_ex_t::vbr_tag_found == 1 */
+#ifdef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
+#define MP3D_ALLOW_MONO_STEREO_TRANSITION  4
+#define MP3D_FLAGS_MASK 7
+#else
+#define MP3D_FLAGS_MASK 3
+#endif
 
 /* compile-time config */
 #define MINIMP3_PREDECODE_FRAMES 2 /* frames to pre-decode and skip after seek (to fill internal structures) */
@@ -665,7 +671,7 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
 
 int mp3dec_ex_open_buf(mp3dec_ex_t *dec, const uint8_t *buf, size_t buf_size, int flags)
 {
-    if (!dec || !buf || (size_t)-1 == buf_size || (flags & (~3)))
+    if (!dec || !buf || (size_t)-1 == buf_size || (flags & (~MP3D_FLAGS_MASK)))
         return MP3D_E_PARAM;
     memset(dec, 0, sizeof(*dec));
     dec->file.buffer = buf;
@@ -852,15 +858,15 @@ size_t mp3dec_ex_read_frame(mp3dec_ex_t *dec, mp3d_sample_t **buf, size_t max_sa
             dec->last_error = MP3D_E_PARAM;
         return 0;
     }
+    if (dec->detected_samples && dec->cur_sample >= dec->detected_samples)
+        return 0; /* at end of stream */
+    if (dec->last_error)
+        return 0; /* error eof state, seek can reset it */
     *buf = NULL;
     uint64_t end_offset = dec->end_offset ? dec->end_offset : dec->file.size;
     int eof = 0;
     mp3dec_frame_info_t frame_info;
     memset(&frame_info, 0, sizeof(frame_info));
-    if (dec->detected_samples && dec->cur_sample >= dec->detected_samples)
-        return 0; /* at end of stream */
-    if (dec->last_error)
-        return 0; /* error eof state, seek can reset it */
     while (dec->buffer_consumed == dec->buffer_samples)
     {
         const uint8_t *dec_buf;
@@ -897,12 +903,9 @@ size_t mp3dec_ex_read_frame(mp3dec_ex_t *dec, mp3d_sample_t **buf, size_t max_sa
             dec->buffer_samples = mp3dec_decode_frame(&dec->mp3d, dec_buf, MINIMP3_MIN(buf_size, (uint64_t)INT_MAX), dec->buffer, &frame_info);
         }
         dec->buffer_consumed = 0;
-        if (dec->info.hz != frame_info.hz || dec->info.layer != frame_info.layer
-#ifndef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
-            || dec->info.channels != frame_info.channels
-#endif
-            )
+        if (dec->info.hz != frame_info.hz || dec->info.layer != frame_info.layer)
         {
+return_e_decode:
             dec->last_error = MP3D_E_DECODE;
             return 0;
         }
@@ -914,6 +917,14 @@ size_t mp3dec_ex_read_frame(mp3dec_ex_t *dec, mp3d_sample_t **buf, size_t max_sa
                 size_t skip = MINIMP3_MIN(dec->buffer_samples, dec->to_skip);
                 dec->buffer_consumed += skip;
                 dec->to_skip -= skip;
+            }
+            if (
+#ifdef MINIMP3_ALLOW_MONO_STEREO_TRANSITION
+                !(dec->flags & MP3D_ALLOW_MONO_STEREO_TRANSITION) &&
+#endif
+                dec->buffer_consumed != dec->buffer_samples && dec->info.channels != frame_info.channels)
+            {
+                goto return_e_decode;
             }
         } else if (dec->to_skip)
         {   /* In mp3 decoding not always can start decode from any frame because of bit reservoir,
@@ -1281,7 +1292,7 @@ int mp3dec_ex_open(mp3dec_ex_t *dec, const char *file_name, int flags)
 
 int mp3dec_ex_open_cb(mp3dec_ex_t *dec, mp3dec_io_t *io, int flags)
 {
-    if (!dec || !io || (flags & (~3)))
+    if (!dec || !io || (flags & (~MP3D_FLAGS_MASK)))
         return MP3D_E_PARAM;
     memset(dec, 0, sizeof(*dec));
 #ifdef MINIMP3_HAVE_RING
