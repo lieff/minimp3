@@ -136,7 +136,7 @@ static __inline__ __attribute__((always_inline)) void minimp3_cpuid(int CPUInfo[
 #endif /* defined(__PIC__)*/
 }
 #endif /* defined(_MSC_VER) || defined(MINIMP3_ONLY_SIMD) */
-static int have_simd()
+static int have_simd(void)
 {
 #ifdef MINIMP3_ONLY_SIMD
     return 1;
@@ -191,7 +191,11 @@ static int have_simd()
 #define HAVE_SIMD 0
 #endif /* !defined(MINIMP3_NO_SIMD) */
 
+#define HAVE_ARMV6 0
 #if defined(__ARM_ARCH) && (__ARM_ARCH >= 6) && !defined(__aarch64__)
+#ifdef HAVE_ARMV6
+    #undef HAVE_ARMV6
+#endif
 #define HAVE_ARMV6 1
 static __inline__ __attribute__((always_inline)) int32_t minimp3_clip_int16_arm(int32_t a)
 {
