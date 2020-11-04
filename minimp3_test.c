@@ -394,7 +394,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         int len_match = ref_samples == info.samples;
         int relaxed_len_match = len_match || (ref_samples + 1152) == info.samples || (ref_samples + 2304) == info.samples;
         int seek_len_match = (ref_samples <= info.samples) || (ref_samples + 2304) >= info.samples;
-        if ((((!relaxed_len_match && MODE_STREAM != mode && MODE_STREAM_BUF != mode && MODE_STREAM_CB != mode) || !seek_len_match) && 3 == info.layer && !no_std_vec) || (no_std_vec && !len_match))
+        if ((((!relaxed_len_match && MODE_STREAM != mode && MODE_STREAM_BUF != mode && MODE_STREAM_CB != mode) || !seek_len_match) && (3 == info.layer || 0 == info.layer) && !no_std_vec) || (no_std_vec && !len_match))
         {   /* some standard vectors are for some reason a little shorter */
             printf("error: reference and produced number of samples do not match (%d/%d)\n", (int)ref_samples, (int)info.samples);
             exit(1);
