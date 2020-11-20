@@ -1378,6 +1378,13 @@ int mp3dec_ex_open_w(mp3dec_ex_t *dec, const wchar_t *file_name, int flags)
 #else /* MINIMP3_NO_STDIO */
 void mp3dec_ex_close(mp3dec_ex_t *dec)
 {
+#ifdef MINIMP3_HAVE_RING
+    if (dec->io)
+        mp3dec_close_ring(&dec->file);
+#else
+    if (dec->io && dec->file.buffer)
+        free((void*)dec->file.buffer);
+#endif
     if (dec->index.frames)
         free(dec->index.frames);
     memset(dec, 0, sizeof(*dec));
