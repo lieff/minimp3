@@ -84,7 +84,7 @@ You can ``#include`` ``minimp3.h`` in as many files as you like.
 Also you can use ``MINIMP3_ONLY_MP3`` define to strip MP1/MP2 decoding code.
 MINIMP3_ONLY_SIMD define controls generic (non SSE/NEON) code generation (always enabled on x64/arm64 targets).
 In case you do not want any platform-specific SIMD optimizations, you can define ``MINIMP3_NO_SIMD``.
-MINIMP3_NONSTANDARD_BUT_LOGICAL define saves some code bytes, and enforces non-stadnard but logical behaviour of mono-stereo transition (rare case).
+MINIMP3_NONSTANDARD_BUT_LOGICAL define saves some code bytes, and enforces non-standard but logical behaviour of mono-stereo transition (rare case).
 MINIMP3_FLOAT_OUTPUT makes ``mp3dec_decode_frame()`` output to be float instead of short and additional function mp3dec_f32_to_s16 will be available for float->short conversion if needed.
 
 Then. we decode the input stream frame-by-frame:
