@@ -86,7 +86,7 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 
 #if !defined(MINIMP3_NO_SIMD)
 
-#if !defined(MINIMP3_ONLY_SIMD) && (defined(_M_X64) || defined(_M_ARM64) || defined(__x86_64__) || defined(__aarch64__))
+#if !defined(MINIMP3_ONLY_SIMD) && (defined(_M_X64) || defined(__x86_64__) || defined(__aarch64__) || defined(_M_ARM64))
 /* x64 always have SSE2, arm64 always have neon, no need for generic code */
 #define MINIMP3_ONLY_SIMD
 #endif /* SIMD checks... */
@@ -161,7 +161,7 @@ end:
     return g_have_simd - 1;
 #endif /* MINIMP3_ONLY_SIMD */
 }
-#elif defined(__ARM_NEON) || defined(__aarch64__)
+#elif defined(__ARM_NEON) || defined(__aarch64__) || defined(_M_ARM64)
 #include <arm_neon.h>
 #define HAVE_SSE 0
 #define HAVE_SIMD 1
@@ -191,7 +191,7 @@ static int have_simd()
 #define HAVE_SIMD 0
 #endif /* !defined(MINIMP3_NO_SIMD) */
 
-#if defined(__ARM_ARCH) && (__ARM_ARCH >= 6) && !defined(__aarch64__)
+#if defined(__ARM_ARCH) && (__ARM_ARCH >= 6) && !defined(__aarch64__) && !defined(_M_ARM64)
 #define HAVE_ARMV6 1
 static __inline__ __attribute__((always_inline)) int32_t minimp3_clip_int16_arm(int32_t a)
 {
