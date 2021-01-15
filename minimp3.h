@@ -84,6 +84,10 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 #define MINIMP3_MIN(a, b)           ((a) > (b) ? (b) : (a))
 #define MINIMP3_MAX(a, b)           ((a) < (b) ? (b) : (a))
 
+#ifndef HAVE_SSE
+#define HAVE_SSE 0
+#endif
+
 #if !defined(MINIMP3_NO_SIMD)
 
 #if !defined(MINIMP3_ONLY_SIMD) && (defined(_M_X64) || defined(__x86_64__) || defined(__aarch64__) || defined(_M_ARM64))
@@ -96,6 +100,9 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 #include <intrin.h>
 #endif /* defined(_MSC_VER) */
 #include <immintrin.h>
+#ifdef HAVE_SSE
+#undef HAVE_SSE
+#endif
 #define HAVE_SSE 1
 #define HAVE_SIMD 1
 #define VSTORE _mm_storeu_ps
@@ -889,7 +896,7 @@ static void L3_midside_stereo(float *left, int n)
         VSTORE(right + i, VSUB(vl, vr));
     }
 #endif /* HAVE_SIMD */
-    for (; i < n; i++)
+    i = (n >> 2) << 2;
     {
         float a = left[i];
         float b = right[i];
