@@ -896,7 +896,7 @@ static void L3_midside_stereo(float *left, int n)
         VSTORE(right + i, VSUB(vl, vr));
     }
 #endif /* HAVE_SIMD */
-    i = (n >> 2) << 2;
+    for (; i < n; i++)
     {
         float a = left[i];
         float b = right[i];
