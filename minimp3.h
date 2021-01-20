@@ -1353,7 +1353,7 @@ static void mp3d_DCT_II(float *grbuf, int n)
     } else
 #endif /* HAVE_SIMD */
 #ifdef MINIMP3_ONLY_SIMD
-    {}
+    {} /* for HAVE_SIMD=1, MINIMP3_ONLY_SIMD=1 case we do not need non-intrinsic "else" branch */
 #else /* MINIMP3_ONLY_SIMD */
     for (; k < n; k++)
     {
@@ -1583,7 +1583,7 @@ static void mp3d_synth(float *xl, mp3d_sample_t *dstl, int nch, float *lins)
     } else
 #endif /* HAVE_SIMD */
 #ifdef MINIMP3_ONLY_SIMD
-    {}
+    {} /* for HAVE_SIMD=1, MINIMP3_ONLY_SIMD=1 case we do not need non-intrinsic "else" branch */
 #else /* MINIMP3_ONLY_SIMD */
     for (i = 14; i >= 0; i--)
     {
