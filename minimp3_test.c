@@ -506,6 +506,13 @@ static int self_test(const char *input_file_name)
     ret = mp3dec_iterate_cb(&io, buf, 0, frames_iterate_cb, 0);
     ASSERT(MP3D_E_PARAM == ret);
 
+    memset(&dec, 0, sizeof(dec));
+    ret = mp3dec_ex_seek(&dec, 10); /* seek with zero initialized decoder - no-op without fail */
+    ASSERT(0 == ret);
+    ret = mp3dec_ex_read(&dec, (mp3d_sample_t*)buf, 10); /* read with zero initialized decoder - reads zero samples */
+    ASSERT(0 == ret);
+    mp3dec_ex_close(&dec); /* close zero initialized decoder - should not crash */
+
     ret = mp3dec_ex_open_buf(0, buf, size, MP3D_SEEK_TO_SAMPLE);
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_ex_open_buf(&dec, 0, size, MP3D_SEEK_TO_SAMPLE);
