@@ -29,7 +29,7 @@ included, no CPU heat to address speedstep:
 
 Conformance test passed on all vectors (PSNR > 96db).
 
-## Comparison with keyj's [minimp3](http://keyj.emphy.de/minimp3/)
+## Comparison with keyj's [minimp3](https://keyj.emphy.de/minimp3/)
 
 Comparison by features:
 
@@ -296,7 +296,7 @@ Example of file decoding with seek capability:
 
 ## Interesting links
 
- * http://keyj.emphy.de/minimp3/
+ * https://keyj.emphy.de/minimp3/
  * https://github.com/technosaurus/PDMP3
  * https://github.com/technosaurus/PDMP2
  * https://github.com/packjpg/packMP3
@@ -306,5 +306,5 @@ Example of file decoding with seek capability:
  * http://www.mp3-converter.com/mp3codec/
  * http://www.multiweb.cz/twoinches/mp3inside.htm
  * https://www.mp3-tech.org/
- * http://id3.org/mp3Frame
+ * https://id3.org/mp3Frame
  * https://www.datavoyage.com/mpgscript/mpeghdr.htm
