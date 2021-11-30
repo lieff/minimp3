@@ -6,6 +6,7 @@
     This software is distributed without any warranty.
     See <http://creativecommons.org/publicdomain/zero/1.0/>.
 */
+#include <stddef.h>
 #include "minimp3.h"
 
 /* flags for mp3dec_ex_open_* functions */
@@ -131,6 +132,7 @@ int mp3dec_ex_open_w(mp3dec_ex_t *dec, const wchar_t *file_name, int flags);
 #if defined(MINIMP3_IMPLEMENTATION) && !defined(_MINIMP3_EX_IMPLEMENTATION_GUARD)
 #define _MINIMP3_EX_IMPLEMENTATION_GUARD
 #include <limits.h>
+#include "minimp3.h"
 
 static void mp3dec_skip_id3v1(const uint8_t *buf, size_t *pbuf_size)
 {
