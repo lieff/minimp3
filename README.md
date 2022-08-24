@@ -148,6 +148,20 @@ As a special case, the decoder supports already split MP3 streams (for example,
 after doing an MP4 demux). In this case, the input buffer must contain _exactly
 one_ non-free-format frame.
 
+## Installing minimp3 (vcpkg)
+
+Alternatively, you can build and install minimp3 using [vcpkg](https://github.com/Microsoft/vcpkg/) dependency manager:
+
+```sh or powershell
+    git clone https://github.com/Microsoft/vcpkg.git
+    cd vcpkg
+    ./bootstrap-vcpkg.sh # "./bootstrap-vcpkg.bat" for powershell
+    ./vcpkg integrate install
+    ./vcpkg install minimp3
+```
+
+The minimp3 port in vcpkg is kept up to date by Microsoft team members and community contributors. If the version is out of date, please [create an issue or pull request](https://github.com/Microsoft/vcpkg) on the vcpkg repository.
+
 ## Seeking
 
 You can seek to any byte in the stream and call ``mp3dec_decode_frame``; this
