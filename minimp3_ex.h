@@ -1213,7 +1213,7 @@ static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
         free(file_name_w);
         return MP3D_E_PARAM;
     }
-    HANDLE file = __mp3dec_create_file(file_name_w, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    HANDLE file = __mp3dec_create_file(file_name_w, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
     free(file_name_w);
     if (INVALID_HANDLE_VALUE == file)
         return MP3D_E_IOERROR;
@@ -1224,7 +1224,7 @@ static int mp3dec_open_file_w(const wchar_t *file_name, mp3dec_map_info_t *map_i
 {
     if (!file_name)
         return MP3D_E_PARAM;
-    HANDLE file = __mp3dec_create_file(file_name, GENERIC_READ, FILE_SHARE_READ, 0, OPEN_EXISTING, 0, 0);
+    HANDLE file = __mp3dec_create_file(file_name, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
     if (INVALID_HANDLE_VALUE == file)
         return MP3D_E_IOERROR;
     return mp3dec_open_file_h(file, map_info);
