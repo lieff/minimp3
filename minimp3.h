@@ -84,6 +84,21 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 #define MINIMP3_MIN(a, b)           ((a) > (b) ? (b) : (a))
 #define MINIMP3_MAX(a, b)           ((a) < (b) ? (b) : (a))
 
+#if defined(MINIMP3_MALLOC) && defined(MINIMP3_FREE) && defined(MINIMP3_REALLOC)
+// ok
+#elif !defined(MINIMP3_MALLOC) && !defined(MINIMP3_FREE) && !defined(MINIMP3_REALLOC)
+// ok
+#else
+#error "Must define all or none of MINIMP3_MALLOC, MINIMP3_FREE, and MINIMP3_REALLOC."
+#endif
+
+#ifndef MINIMP3_MALLOC
+#define MINIMP3_MALLOC(sz)           malloc(sz)
+#define MINIMP3_REALLOC(p,newsz)     realloc(p,newsz)
+#define MINIMP3_FREE(p)              free(p)
+#endif
+
+
 #if !defined(MINIMP3_NO_SIMD)
 
 #if !defined(MINIMP3_ONLY_SIMD) && (defined(_M_X64) || defined(__x86_64__) || defined(__aarch64__) || defined(_M_ARM64))
