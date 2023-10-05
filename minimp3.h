@@ -241,6 +241,10 @@ struct mp3dec_s
     unsigned char header[4], reserv_buf[511];
 
     mp3dec_scratch_t scratch;
+
+#if !defined(MINIMP3_ONLY_MP3)
+        L12_scale_info sci[1];
+#endif
 };
 
 static void bs_init(bs_t *bs, const uint8_t *data, int bytes)
@@ -1784,16 +1788,15 @@ int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_s
 #ifdef MINIMP3_ONLY_MP3
         return 0;
 #else /* MINIMP3_ONLY_MP3 */
-        L12_scale_info sci[1];
-        L12_read_scale_info(hdr, bs_frame, sci);
+        L12_read_scale_info(hdr, bs_frame, dec->sci);
 
         memset(dec->scratch.grbuf[0], 0, 576*2*sizeof(float));
         for (i = 0, igr = 0; igr < 3; igr++)
         {
-            if (12 == (i += L12_dequantize_granule(dec->scratch.grbuf[0] + i, bs_frame, sci, info->layer | 1)))
+            if (12 == (i += L12_dequantize_granule(dec->scratch.grbuf[0] + i, bs_frame, dec->sci, info->layer | 1)))
             {
                 i = 0;
-                L12_apply_scf_384(sci, sci->scf + igr, dec->scratch.grbuf[0]);
+                L12_apply_scf_384(dec->sci, dec->sci->scf + igr, dec->scratch.grbuf[0]);
                 mp3d_synth_granule(dec->qmf_state, dec->scratch.grbuf[0], 12, info->channels, pcm, dec->scratch.syn[0]);
                 memset(dec->scratch.grbuf[0], 0, 576*2*sizeof(float));
                 pcm += 384*info->channels;
