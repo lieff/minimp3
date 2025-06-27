@@ -590,7 +590,7 @@ int mp3dec_iterate_cb(mp3dec_io_t *io, uint8_t *buf, size_t buf_size, MP3D_ITERA
         readed += i;
         if (callback)
         {
-            if ((ret = callback(user_data, hdr, frame_size, free_format_bytes, filled - consumed, readed, &frame_info)))
+            if ((ret = callback(user_data, hdr, frame_size, free_format_bytes, filled - consumed - i, readed, &frame_info)))
                 return ret;
         }
         readed += frame_size;
