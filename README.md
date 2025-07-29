@@ -286,6 +286,7 @@ Example of file decoding with seek capability:
 ## Bindings
 
  * https://github.com/tosone/minimp3 - go bindings
+ * https://github.com/cowork-ai/go-minimp3 - go bindings
  * https://github.com/notviri/rmp3 - rust `no_std` bindings which don't allocate.
  * https://github.com/germangb/minimp3-rs - rust bindings
  * https://github.com/johangu/node-minimp3 - NodeJS bindings
