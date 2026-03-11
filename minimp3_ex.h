@@ -210,27 +210,50 @@ static int mp3dec_check_vbrtag(const uint8_t *frame, int frame_size, uint32_t *f
     if (L3_read_side_info(bs, gr_info, frame) < 0)
         return 0; /* side info corrupted */
 
-    const uint8_t *tag = frame + HDR_SIZE + bs->pos/8;
+    size_t frame_size_u = (size_t)frame_size;
+    size_t tag_off = HDR_SIZE + bs->pos/8;
+    if (tag_off > frame_size_u || frame_size_u - tag_off < 8)
+        return 0;
+    const uint8_t *tag = frame + tag_off;
     if (memcmp(g_xing_tag, tag, 4) && memcmp(g_info_tag, tag, 4))
         return 0;
     int flags = tag[7];
     if (!((flags & FRAMES_FLAG)))
         return -1;
-    tag += 8;
+    tag_off += 8;
+    if (frame_size_u - tag_off < 4)
+        return 0;
+    tag = frame + tag_off;
     *frames = (uint32_t)(tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | tag[3];
-    tag += 4;
+    tag_off += 4;
     if (flags & BYTES_FLAG)
-        tag += 4;
+    {
+        if (frame_size_u - tag_off < 4)
+            return 0;
+        tag_off += 4;
+    }
     if (flags & TOC_FLAG)
-        tag += 100;
+    {
+        if (frame_size_u - tag_off < 100)
+            return 0;
+        tag_off += 100;
+    }
     if (flags & VBR_SCALE_FLAG)
-        tag += 4;
+    {
+        if (frame_size_u - tag_off < 4)
+            return 0;
+        tag_off += 4;
+    }
     *delay = *padding = 0;
+    if (frame_size_u - tag_off < 1)
+        return 0;
+    tag = frame + tag_off;
     if (*tag)
     {   /* extension, LAME, Lavc, etc. Should be the same structure. */
-        tag += 21;
-        if (tag - frame + 14 >= frame_size)
+        if (frame_size_u - tag_off <= 35)
             return 0;
+        tag_off += 21;
+        tag = frame + tag_off;
         *delay   = ((tag[0] << 4) | (tag[1] >> 4)) + (528 + 1);
         *padding = (((tag[1] & 0xF) << 8) | tag[2]) - (528 + 1);
     }

@@ -752,6 +752,7 @@ static const char *g_files[] = {
     "vectors/l3-nonstandard-compl-sideinfo-blocktype.bit",
     "vectors/l3-nonstandard-compl-sideinfo-size.bit",
     "vectors/l3-nonstandard-sideinfo-size.bit",
+    "vectors/l3-nonstandard-vbrtag-oob-read.bit",
     "vectors/l3-si.bit",
     "vectors/l3-si_block.bit",
     "vectors/l3-si_huff.bit",
