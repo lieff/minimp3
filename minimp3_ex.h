@@ -204,6 +204,8 @@ static int mp3dec_check_vbrtag(const uint8_t *frame, int frame_size, uint32_t *f
     /  MPEG2 & 2.5     9     17*/
     bs_t bs[1];
     L3_gr_info_t gr_info[4];
+    if (frame_size < (int)(HDR_SIZE + 8))
+        return 0;
     bs_init(bs, frame + HDR_SIZE, frame_size - HDR_SIZE);
     if (HDR_IS_CRC(frame))
         get_bits(bs, 16);
