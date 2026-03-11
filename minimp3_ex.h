@@ -732,8 +732,13 @@ int mp3dec_ex_seek(mp3dec_ex_t *dec, uint64_t position)
         dec->cur_sample = 0;
         goto do_exit;
     }
+    if (dec->samples && position > dec->samples)
+        position = dec->samples;
     dec->cur_sample = position;
-    position += dec->start_delay;
+    if (position > (UINT64_MAX - (uint64_t)dec->start_delay))
+        position = UINT64_MAX;
+    else
+        position += dec->start_delay;
     if (0 == position)
     {   /* optimize seek to zero, no index needed */
 seek_zero:
@@ -821,7 +826,12 @@ seek_zero:
         }
     }
     dec->offset = dec->index.frames[i].offset;
-    dec->to_skip = position - dec->index.frames[i].sample;
+    if (position > dec->index.frames[i].sample)
+    {
+        uint64_t to_skip64 = position - dec->index.frames[i].sample;
+        dec->to_skip = (to_skip64 > (uint64_t)INT_MAX) ? INT_MAX : (int)to_skip64;
+    } else
+        dec->to_skip = 0;
     while ((i + 1) < dec->index.num_frames && !dec->index.frames[i].sample && !dec->index.frames[i + 1].sample)
     {   /* skip not decodable first frames */
         const uint8_t *hdr;
@@ -835,7 +845,11 @@ seek_zero:
                 return MP3D_E_IOERROR;
         } else
             hdr = dec->file.buffer + dec->index.frames[i].offset;
-        dec->to_skip += hdr_frame_samples(hdr)*dec->info.channels;
+        int frame_samples = hdr_frame_samples(hdr)*dec->info.channels;
+        if (dec->to_skip > (INT_MAX - frame_samples))
+            dec->to_skip = INT_MAX;
+        else
+            dec->to_skip += frame_samples;
         i++;
     }
 do_exit:
@@ -913,7 +927,7 @@ return_e_decode:
         if (dec->buffer_samples)
         {
             dec->buffer_samples *= frame_info->channels;
-            if (dec->to_skip)
+            if (dec->to_skip > 0)
             {
                 size_t skip = MINIMP3_MIN(dec->buffer_samples, dec->to_skip);
                 dec->buffer_consumed += skip;
@@ -927,7 +941,7 @@ return_e_decode:
             {
                 goto return_e_decode;
             }
-        } else if (dec->to_skip)
+        } else if (dec->to_skip > 0)
         {   /* In mp3 decoding not always can start decode from any frame because of bit reservoir,
                count skip samples for such frames */
             int frame_samples = hdr_frame_samples(dec_buf)*frame_info->channels;
