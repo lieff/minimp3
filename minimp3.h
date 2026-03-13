@@ -293,11 +293,22 @@ static unsigned hdr_sample_rate_hz(const uint8_t *h)
     return g_hz[HDR_GET_SAMPLE_RATE(h)] >> (int)!HDR_TEST_MPEG1(h) >> (int)!HDR_TEST_NOT_MPEG25(h);
 }
 
+/**
+ * Returns how many samples header contains
+ * @param h header
+ * @return number of samples in header
+ */
 static unsigned hdr_frame_samples(const uint8_t *h)
 {
     return HDR_IS_LAYER_1(h) ? 384 : (1152 >> (int)HDR_IS_FRAME_576(h));
 }
 
+/**
+ * Returns size of frame in bytes
+ * @param h header
+ * @param free_format_size TODO document
+ * @return size of frame TODO document with or without header?
+ */
 static int hdr_frame_bytes(const uint8_t *h, int free_format_size)
 {
     int frame_bytes = hdr_frame_samples(h)*hdr_bitrate_kbps(h)*125/hdr_sample_rate_hz(h);
@@ -1654,20 +1665,55 @@ static void mp3d_synth_granule(float *qmf_state, float *grbuf, int nbands, int n
     }
 }
 
+/*
+ * User-usable functions start here
+ * TODO rename this to *.c file and make a header with docs
+ */
+
+/**
+ * Checks for <MAX_FRAME_SYNC_MATCHES> frame headers to match or
+ * till buffer ends.
+ * @param hdr current header pointer
+ * @param mp3_bytes bytes left to check in buffer, must be valid mp3 in this region
+ * @param frame_bytes same as free_format_bytes in hdr_frame_bytes? TODO document
+ * @return 1 if frame headers match, 0 otherwise
+ */
 static int mp3d_match_frame(const uint8_t *hdr, int mp3_bytes, int frame_bytes)
 {
     int i, nmatch;
     for (i = 0, nmatch = 0; nmatch < MAX_FRAME_SYNC_MATCHES; nmatch++)
     {
+        // shift index <i> by size of frame
         i += hdr_frame_bytes(hdr + i, frame_bytes) + hdr_padding(hdr + i);
+
+        // if after index <i> a header can't be found
+        // return 1 if any frames had been found before
         if (i + HDR_SIZE > mp3_bytes)
             return nmatch > 0;
+
+        // TODO document
+        // my interpretation:
+        // when at least one of <MAX_FRAME_SYNC_MATCHES> doesn't match
+        // reject the whole thing
         if (!hdr_compare(hdr, hdr + i))
             return 0;
     }
+
+    // if second <if> doesn't match
+    // (i.e. we are sure that at least <MAX_FRAME_SYNC_MATCHES> headers match)
+    // return success
     return 1;
 }
 
+/**
+ * Searches for the (first?) frame matching
+ *
+ * @param mp3 current buffer pointer
+ * @param mp3_bytes bytes left in buffer
+ * @param free_format_bytes TODO document
+ * @param ptr_frame_bytes TODO document
+ * @return offset into the <mp3> buffer of (first?) found frame, equal to <mp3_bytes> if not found
+ */
 static int mp3d_find_frame(const uint8_t *mp3, int mp3_bytes, int *free_format_bytes, int *ptr_frame_bytes)
 {
     int i, k;
@@ -1678,6 +1724,7 @@ static int mp3d_find_frame(const uint8_t *mp3, int mp3_bytes, int *free_format_b
             int frame_bytes = hdr_frame_bytes(mp3, *free_format_bytes);
             int frame_and_padding = frame_bytes + hdr_padding(mp3);
 
+            // TODO document this loop
             for (k = HDR_SIZE; !frame_bytes && k < MAX_FREE_FORMAT_FRAME_SIZE && i + 2*k < mp3_bytes - HDR_SIZE; k++)
             {
                 if (hdr_compare(mp3, mp3 + k))
@@ -1710,6 +1757,15 @@ void mp3dec_init(mp3dec_t *dec)
     dec->header[0] = 0;
 }
 
+/**
+ * Decodes the frame
+ * @param dec state structure
+ * @param mp3 byte buffer of compressed data
+ * @param mp3_bytes size of byte buffer
+ * @param pcm uncompressed data output
+ * @param info frame info
+ * @return how many <pcm> samples *PER CHANNEL* had been read
+ */
 int mp3dec_decode_frame(mp3dec_t *dec, const uint8_t *mp3, int mp3_bytes, mp3d_sample_t *pcm, mp3dec_frame_info_t *info)
 {
     int i = 0, igr, frame_size = 0, success = 1;
