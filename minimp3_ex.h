@@ -150,7 +150,7 @@ static void mp3dec_skip_id3v1(const uint8_t *buf, size_t *pbuf_size)
     {
         buf_size -= 32;
         const uint8_t *tag = buf + buf_size + 8 + 4;
-        uint32_t tag_size = (uint32_t)(tag[3] << 24) | (tag[2] << 16) | (tag[1] << 8) | tag[0];
+        uint32_t tag_size = ((uint32_t)tag[3] << 24) | ((uint32_t)tag[2] << 16) | ((uint32_t)tag[1] << 8) | tag[0];
         if (buf_size >= tag_size)
             buf_size -= tag_size;
     }
