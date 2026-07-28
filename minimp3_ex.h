@@ -936,6 +936,8 @@ size_t mp3dec_ex_read_frame(mp3dec_ex_t *dec, mp3d_sample_t **buf, mp3dec_frame_
             dec->input_consumed += frame_info->frame_bytes;
         } else
         {
+            if (dec->offset >= end_offset)
+                return 0;
             dec_buf = dec->file.buffer + dec->offset;
             uint64_t buf_size = end_offset - dec->offset;
             if (!buf_size)
