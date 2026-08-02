@@ -428,11 +428,14 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
         }
         break;
     } while(1);
-    size_t allocated = MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t);
+    uint64_t samples_bytes;
     if (detected_samples)
-        allocated += detected_samples*sizeof(mp3d_sample_t);
+        samples_bytes = detected_samples*sizeof(mp3d_sample_t);
     else
-        allocated += (buf_size/frame_info.frame_bytes)*samples*sizeof(mp3d_sample_t);
+        samples_bytes = (uint64_t)(buf_size/frame_info.frame_bytes)*samples*sizeof(mp3d_sample_t);
+    if (samples_bytes > (uint64_t)((size_t)-1) - MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t))
+        return MP3D_E_MEMORY; /* prevent size_t overflow from malicious VBR frame count (issue #140) */
+    size_t allocated = MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t) + (size_t)samples_bytes;
     info->buffer = (mp3d_sample_t*)malloc(allocated);
     if (!info->buffer)
         return MP3D_E_MEMORY;
