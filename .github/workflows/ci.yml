@@ -1,0 +1,37 @@
+name: conformance
+
+on: [push, pull_request]
+
+# One live run per workflow per ref: a new push to a branch or PR cancels the
+# superseded run instead of queuing behind it in the shared account-wide runner
+# pool. Runs on master get a unique group, so they are never cancelled or coalesced.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref == 'refs/heads/master' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' }}
+
+jobs:
+  conformance:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Host conformance, fixed and float
+        run: |
+          python3 tools/conformance.py
+          python3 tools/conformance.py --float
+
+      - uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+
+      - name: Cross-ISA bit-exactness
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user
+          python3 tools/conformance.py --qemu riscv32
+          python3 tools/conformance.py --qemu arm
+
+      - name: Cross-target code size
+        run: |
+          sudo apt-get install -y llvm
+          python3 tools/codesize.py

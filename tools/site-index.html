@@ -1,0 +1,59 @@
+<!doctype html>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>minimp3-fixed benchmarks</title>
+<style>
+  :root { color-scheme: light dark; --fg:#24292f; --dim:#57606a; --bg:#fff;
+          --card:#f6f8fa; --line:#d0d7de; }
+  @media (prefers-color-scheme: dark) {
+    :root { --fg:#e6edf3; --dim:#8b949e; --bg:#0d1117; --card:#161b22;
+            --line:#30363d; }
+  }
+  body { margin:0; padding:2rem 1.25rem 4rem; background:var(--bg);
+         color:var(--fg); font:15px/1.6 -apple-system, BlinkMacSystemFont,
+         "Segoe UI", Helvetica, Arial, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; }
+  h1 { font-size:1.7rem; margin:0 0 .25rem; }
+  h2 { font-size:1.15rem; margin:2.5rem 0 .5rem; padding-top:.5rem;
+       border-top:1px solid var(--line); }
+  p.sub { color:var(--dim); margin:.25rem 0 1.5rem; }
+  img { width:100%; height:auto; display:block; margin:.75rem 0 1.25rem; }
+  .note { background:var(--card); border:1px solid var(--line);
+          border-radius:6px; padding:.85rem 1rem; color:var(--dim);
+          font-size:13.5px; }
+  a { color:#0969da; } @media (prefers-color-scheme: dark){ a{color:#4493f8;} }
+  code { background:var(--card); padding:.1em .35em; border-radius:4px;
+         font-size:.9em; }
+</style>
+<main>
+<h1>minimp3-fixed benchmarks</h1>
+<p class="sub">Fixed-point MPEG Layer III, forked from
+<a href="https://github.com/lieff/minimp3">lieff/minimp3</a>.
+<a href="https://github.com/zackees/minimp3-fixed">Source</a> &middot;
+<a href="latest.json">latest.json</a> &middot;
+<a href="history.jsonl">history.jsonl</a> &middot;
+<a href="manifest.json">manifest.json</a></p>
+
+<div class="note">
+Every metric here is <strong>exact</strong>: instruction counts are counted
+under QEMU, accuracy is measured against the ISO reference PCM, and code size
+is read from the object. None has run-to-run variance, so a 0.5% move is a real
+move rather than noise to average away. None is a wall clock &mdash; they rank
+candidates rather than predict hardware time. Timing on real silicon lives in
+<a href="https://github.com/FastLED/FastLED">FastLED</a>.
+</div>
+
+<h2 id="accuracy">Accuracy</h2>
+<img src="benchmark-accuracy.svg" alt="PSNR against the ISO reference for the fixed and floating point builds">
+
+<h2 id="opcount">Instructions executed</h2>
+<img src="benchmark-opcount-riscv32.svg" alt="Instructions executed on riscv32">
+<img src="benchmark-opcount-arm.svg" alt="Instructions executed on arm">
+
+<h2 id="size">Code size</h2>
+<img src="benchmark-size-riscv32.svg" alt="Decoder .text size on riscv32">
+<img src="benchmark-size-arm.svg" alt="Decoder .text size on arm">
+
+<h2 id="history">History</h2>
+<img src="benchmark-history.svg" alt="Instruction count over published runs">
+</main>

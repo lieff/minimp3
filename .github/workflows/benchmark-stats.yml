@@ -1,0 +1,107 @@
+name: benchmark-stats
+
+# Measures the decoder, renders the charts, and publishes them to the
+# benchmark-stats branch, which is what GitHub Pages serves and what the
+# README embeds its SVGs from. Nothing generated is committed to master: the
+# charts change on every run and would otherwise churn the history.
+#
+# Every metric published here is exact -- instruction counts under QEMU,
+# accuracy against the ISO reference, code size read from the object -- so a
+# run is meaningful without repetition. That is why this is cheap enough to be
+# a push job rather than a nightly one.
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "minimp3*.h"
+      - "port/**"
+      - "tools/**"
+      - ".github/workflows/benchmark-stats.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: benchmark-stats
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  PUBLISH_REF: refs/heads/benchmark-stats
+
+jobs:
+  measure-and-publish:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: mlugg/setup-zig@v1
+        with:
+          version: 0.13.0
+
+      - name: install QEMU and the plugin headers
+        run: |
+          set -euxo pipefail
+          sudo apt-get update
+          sudo apt-get install -y qemu-user llvm libglib2.0-dev
+          # Debian and Ubuntu package the emulator without qemu-plugin.h, so
+          # fetch it from the tag matching the installed emulator. A mismatched
+          # header would fail the plugin's version check at load time rather
+          # than silently miscount.
+          VER=$(qemu-riscv32 --version | head -1 | sed -E 's/.*version ([0-9]+\.[0-9]+).*/\1/')
+          mkdir -p "$RUNNER_TEMP/qemu-include"
+          curl -fsSL -o "$RUNNER_TEMP/qemu-include/qemu-plugin.h" \
+            "https://raw.githubusercontent.com/qemu/qemu/stable-${VER}/include/qemu/qemu-plugin.h" \
+            || curl -fsSL -o "$RUNNER_TEMP/qemu-include/qemu-plugin.h" \
+               "https://raw.githubusercontent.com/qemu/qemu/master/include/qemu/qemu-plugin.h"
+          echo "MINIMP3_QEMU_INCLUDE=$RUNNER_TEMP/qemu-include" >> "$GITHUB_ENV"
+
+      - name: conformance must pass before anything is published
+        run: |
+          set -euxo pipefail
+          python3 tools/conformance.py
+          python3 tools/conformance.py --float
+          python3 tools/conformance.py --qemu riscv32
+          python3 tools/conformance.py --qemu arm
+
+      - name: carry forward the published history
+        run: |
+          set -euxo pipefail
+          mkdir -p site
+          if git ls-remote --exit-code origin "$PUBLISH_REF" >/dev/null 2>&1; then
+            git fetch origin "$PUBLISH_REF" --depth=1
+            git show FETCH_HEAD:history.jsonl > site/history.jsonl || true
+          fi
+
+      - name: measure and render
+        run: |
+          set -euxo pipefail
+          python3 tools/benchmark.py --out site
+          python3 tools/charts.py --site site
+          touch site/.nojekyll
+          cp tools/site-index.html site/index.html
+          python3 tools/manifest.py --site site
+          cat site/latest.json | head -40
+
+      - name: publish to the benchmark-stats branch
+        if: github.ref == 'refs/heads/master'
+        run: |
+          set -euxo pipefail
+          cd site
+          git init -q
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "benchmarks for ${GITHUB_SHA:0:12}
+
+Published by ${GITHUB_WORKFLOW} run ${GITHUB_RUN_ID}.
+history.jsonl carries every prior run; latest.json is this one."
+          git push -f "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${GITHUB_REPOSITORY}.git" \
+            HEAD:benchmark-stats
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-site
+          path: site/
