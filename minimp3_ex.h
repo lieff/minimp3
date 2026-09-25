@@ -150,7 +150,7 @@ static void mp3dec_skip_id3v1(const uint8_t *buf, size_t *pbuf_size)
     {
         buf_size -= 32;
         const uint8_t *tag = buf + buf_size + 8 + 4;
-        uint32_t tag_size = (uint32_t)(tag[3] << 24) | (tag[2] << 16) | (tag[1] << 8) | tag[0];
+        uint32_t tag_size = ((uint32_t)tag[3] << 24) | (tag[2] << 16) | (tag[1] << 8) | tag[0];
         if (buf_size >= tag_size)
             buf_size -= tag_size;
     }
@@ -226,7 +226,7 @@ static int mp3dec_check_vbrtag(const uint8_t *frame, int frame_size, uint32_t *f
     if (frame_size_u - tag_off < 4)
         return 0;
     tag = frame + tag_off;
-    *frames = (uint32_t)(tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | tag[3];
+    *frames = ((uint32_t)tag[0] << 24) | (tag[1] << 16) | (tag[2] << 8) | tag[3];
     tag_off += 4;
     if (flags & BYTES_FLAG)
     {

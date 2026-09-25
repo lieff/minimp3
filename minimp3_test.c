@@ -452,6 +452,39 @@ static int self_test(const char *input_file_name)
 #define ASSERT(c) if (!(c)) { printf("failed, line=%d\n", __LINE__); exit(1); }
     ASSERT(1152 == samples);
 
+    {
+        /* Regression: compile as C11 with -fsanitize=shift to catch signed-shift UB. */
+        static const struct { uint8_t bytes[4]; uint32_t value; } tags[] = {
+            { { 0x7f, 0xff, 0xff, 0xff }, 0x7fffffffu },
+            { { 0x80, 0x00, 0x00, 0x00 }, 0x80000000u },
+            { { 0x89, 0xab, 0xcd, 0xef }, 0x89abcdefu },
+            { { 0xff, 0xff, 0xff, 0xff }, 0xffffffffu }
+        };
+        uint8_t ape[33] = { 0 };
+        uint8_t frame[417] = { 0xff, 0xfb, 0x90, 0xc0 }; /* MPEG-1 Layer III, mono. */
+        size_t i, j;
+        memcpy(ape + 1, "APETAGEX", 8);
+        frame[28] = 1; /* FRAMES_FLAG */
+        for (i = 0; i < sizeof(tags)/sizeof(tags[0]); i++)
+        {
+            size_t remaining = sizeof(ape);
+            uint32_t frames = 0;
+            int delay, padding;
+            for (j = 0; j < 4; j++)
+                ape[13 + j] = tags[i].bytes[3 - j]; /* APEv2 size is little-endian. */
+            mp3dec_skip_id3v1(ape, &remaining);
+            ASSERT(1 == remaining);
+            memcpy(frame + 29, tags[i].bytes, 4); /* Xing/Info frame count is big-endian. */
+            for (j = 0; j < 2; j++)
+            {
+                memcpy(frame + 21, j ? "Info" : "Xing", 4);
+                ret = mp3dec_check_vbrtag(frame, sizeof(frame), &frames, &delay, &padding);
+                ASSERT(1 == ret && tags[i].value == frames);
+                ASSERT(0 == delay && 0 == padding);
+            }
+        }
+    }
+
     ret = mp3dec_detect_buf(0, size);
     ASSERT(MP3D_E_PARAM == ret);
     ret = mp3dec_detect_buf(buf, (size_t)-1);
