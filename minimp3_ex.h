@@ -28,6 +28,20 @@
 /*#define MINIMP3_SCAN_LIMIT (256*1024)*/ /* how many bytes will be scanned to search first valid mp3 frame, to prevent stall on large non-mp3 files */
 #define MINIMP3_ENABLE_RING 0      /* WIP enable hardware magic ring buffer if available, to make less input buffer memmove(s) in callback IO mode */
 
+#if defined(MINIMP3_MALLOC) && defined(MINIMP3_FREE) && defined(MINIMP3_REALLOC)
+// ok
+#elif !defined(MINIMP3_MALLOC) && !defined(MINIMP3_FREE) && !defined(MINIMP3_REALLOC)
+// ok
+#else
+#error "Must define all or none of MINIMP3_MALLOC, MINIMP3_FREE, and MINIMP3_REALLOC."
+#endif
+
+#ifndef MINIMP3_MALLOC
+#define MINIMP3_MALLOC(sz)           malloc(sz)
+#define MINIMP3_REALLOC(p,newsz)     realloc(p,newsz)
+#define MINIMP3_FREE(p)              free(p)
+#endif
+
 /* return error codes */
 #define MP3D_E_PARAM   -1
 #define MP3D_E_MEMORY  -2
