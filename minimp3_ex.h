@@ -436,7 +436,7 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
     if (samples_bytes > (uint64_t)((size_t)-1) - MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t))
         return MP3D_E_MEMORY; /* prevent size_t overflow from malicious VBR frame count (issue #140) */
     size_t allocated = MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t) + (size_t)samples_bytes;
-    info->buffer = (mp3d_sample_t*)malloc(allocated);
+    info->buffer = (mp3d_sample_t*)MINIMP3_MALLOC(allocated);
     if (!info->buffer)
         return MP3D_E_MEMORY;
     /* save info */
@@ -450,7 +450,7 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
         if ((allocated - info->samples*sizeof(mp3d_sample_t)) < MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t))
         {
             allocated *= 2;
-            mp3d_sample_t *alloc_buf = (mp3d_sample_t*)realloc(info->buffer, allocated);
+            mp3d_sample_t *alloc_buf = (mp3d_sample_t*)MINIMP3_REALLOC(info->buffer, allocated);
             if (!alloc_buf)
                 return MP3D_E_MEMORY;
             info->buffer = alloc_buf;
@@ -517,7 +517,7 @@ int mp3dec_load_cb(mp3dec_t *dec, mp3dec_io_t *io, uint8_t *buf, size_t buf_size
     /* reallocate to normal buffer size */
     if (allocated != info->samples*sizeof(mp3d_sample_t))
     {
-        mp3d_sample_t *alloc_buf = (mp3d_sample_t*)realloc(info->buffer, info->samples*sizeof(mp3d_sample_t));
+        mp3d_sample_t *alloc_buf = (mp3d_sample_t*)MINIMP3_REALLOC(info->buffer, info->samples*sizeof(mp3d_sample_t));
         if (!alloc_buf && info->samples)
             return MP3D_E_MEMORY;
         info->buffer = alloc_buf;
@@ -682,7 +682,7 @@ static int mp3dec_load_index(void *user_data, const uint8_t *frame, int frame_si
             dec->index.capacity = 4096;
         else
             dec->index.capacity *= 2;
-        mp3dec_frame_t *alloc_buf = (mp3dec_frame_t *)realloc((void*)dec->index.frames, sizeof(mp3dec_frame_t)*dec->index.capacity);
+        mp3dec_frame_t *alloc_buf = (mp3dec_frame_t *)MINIMP3_REALLOC((void*)dec->index.frames, sizeof(mp3dec_frame_t)*dec->index.capacity);
         if (!alloc_buf)
             return MP3D_E_MEMORY;
         dec->index.frames = alloc_buf;
@@ -1028,7 +1028,7 @@ int mp3dec_ex_open_cb(mp3dec_ex_t *dec, mp3dec_io_t *io, int flags)
         return ret;
 #else
     dec->file.size = MINIMP3_IO_SIZE;
-    dec->file.buffer = (const uint8_t*)malloc(dec->file.size);
+    dec->file.buffer = (const uint8_t*)MINIMP3_MALLOC(dec->file.size);
     if (!dec->file.buffer)
         return MP3D_E_MEMORY;
 #endif
@@ -1263,7 +1263,7 @@ static int mp3dec_open_file_w(const wchar_t *file_name, mp3dec_map_info_t *map_i
 static void mp3dec_close_file(mp3dec_map_info_t *map_info)
 {
     if (map_info->buffer)
-        free((void *)map_info->buffer);
+        MINIMP3_FREE((void *)map_info->buffer);
     map_info->buffer = 0;
     map_info->size = 0;
 }
@@ -1286,7 +1286,7 @@ static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
     map_info->size = (size_t)size;
     if (fseek(file, 0, SEEK_SET))
         goto error;
-    map_info->buffer = (uint8_t *)malloc(map_info->size);
+    map_info->buffer = (uint8_t *)MINIMP3_MALLOC(map_info->size);
     if (!map_info->buffer)
     {
         res = MP3D_E_MEMORY;
@@ -1377,12 +1377,12 @@ void mp3dec_ex_close(mp3dec_ex_t *dec)
         mp3dec_close_ring(&dec->file);
 #else
     if (dec->io && dec->file.buffer)
-        free((void*)dec->file.buffer);
+        MINIMP3_FREE((void*)dec->file.buffer);
 #endif
     if (dec->is_file)
         mp3dec_close_file(&dec->file);
     if (dec->index.frames)
-        free(dec->index.frames);
+        MINIMP3_FREE(dec->index.frames);
     memset(dec, 0, sizeof(*dec));
 }
 
@@ -1430,10 +1430,10 @@ void mp3dec_ex_close(mp3dec_ex_t *dec)
         mp3dec_close_ring(&dec->file);
 #else
     if (dec->io && dec->file.buffer)
-        free((void*)dec->file.buffer);
+        MINIMP3_FREE((void*)dec->file.buffer);
 #endif
     if (dec->index.frames)
-        free(dec->index.frames);
+        MINIMP3_FREE(dec->index.frames);
     memset(dec, 0, sizeof(*dec));
 }
 #endif
