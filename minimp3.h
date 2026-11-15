@@ -1636,6 +1636,7 @@ static void mp3d_synth_granule(float *qmf_state, float *grbuf, int nbands, int n
     }
 
     memcpy(lins, qmf_state, sizeof(float)*15*64);
+    memset(lins + 15*64, 0, sizeof(float)*64*nbands); /* zero workspace so no uninitialized floats reach qmf_state */
 
     for (i = 0; i < nbands; i += 2)
     {
