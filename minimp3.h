@@ -690,6 +690,12 @@ static void L3_decode_scalefactors(const uint8_t *hdr, uint8_t *ist_pos, bs_t *b
     if (gr->n_short_sfb)
     {
         int sh = 3 - scf_shift;
+#if defined(__GNUC__) || defined(__clang__)
+        /* n_long_sfb + n_short_sfb <= 39 by construction (see L3_read_side_info);
+           hint it to silence -Wstringop-overflow and drop the bounds branch */
+        if ((unsigned)(gr->n_long_sfb + gr->n_short_sfb) >= sizeof(iscf))
+            __builtin_unreachable();
+#endif
         for (i = 0; i < gr->n_short_sfb; i += 3)
         {
             iscf[gr->n_long_sfb + i + 0] += gr->subblock_gain[0] << sh;
