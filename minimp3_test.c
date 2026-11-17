@@ -448,7 +448,6 @@ static int self_test(const char *input_file_name)
     uint8_t *buf = preload(file, &size);
     fclose(file);
     int samples = mp3dec_decode_frame(&mp3d, buf, size, 0, &frame_info);
-    free(buf);
 #define ASSERT(c) if (!(c)) { printf("failed, line=%d\n", __LINE__); exit(1); }
     ASSERT(1152 == samples);
 
@@ -611,6 +610,7 @@ static int self_test(const char *input_file_name)
     ASSERT(0 == ret && MP3D_E_PARAM == dec.last_error); /* invalid param case */
     ret = mp3dec_ex_read_frame(&dec, (mp3d_sample_t**)buf, 0, 10);
     ASSERT(0 == ret && MP3D_E_PARAM == dec.last_error); /* invalid param case */
+    free(buf);
 
     ret = mp3dec_load(0, input_file_name, &finfo, 0, 0);
     ASSERT(MP3D_E_PARAM == ret);
