@@ -690,9 +690,12 @@ static void L3_decode_scalefactors(const uint8_t *hdr, uint8_t *ist_pos, bs_t *b
     if (gr->n_short_sfb)
     {
         int sh = 3 - scf_shift;
-#if defined(__GNUC__) || defined(__clang__)
+#if defined(__clang__) || (defined(__GNUC__) && (__GNUC__ >= 7))
         /* n_long_sfb + n_short_sfb <= 39 by construction (see L3_read_side_info);
-           hint it to silence -Wstringop-overflow and drop the bounds branch */
+           hint it to silence -Wstringop-overflow and drop the bounds branch.
+           GCC < 7 has no -Wstringop-overflow to silence, but mishandles the hint
+           and reports a bogus -Warray-bounds instead (issue #157), so don't emit
+           it there. */
         if ((unsigned)(gr->n_long_sfb + gr->n_short_sfb) >= sizeof(iscf))
             __builtin_unreachable();
 #endif
