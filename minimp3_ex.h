@@ -1217,6 +1217,22 @@ error:
 #elif defined(_WIN32)
 #include <windows.h>
 
+/* UWP (WINAPI_FAMILY_APP) exposes only the *_FromApp family of file APIs: CreateFileW,
+   GetFileSize, CreateFileMapping and MapViewOfFile are gated to WINAPI_PARTITION_DESKTOP
+   in the SDK headers. Old SDKs without winapifamily.h are assumed to be desktop. */
+#if defined(WINAPI_FAMILY_PARTITION)
+#if WINAPI_FAMILY_PARTITION(WINAPI_PARTITION_DESKTOP)
+#  define MP3DEC_WINAPI_DESKTOP 1
+#else
+#  define MP3DEC_WINAPI_DESKTOP 0
+#endif
+#else
+#  define MP3DEC_WINAPI_DESKTOP 1
+#endif
+#if !MP3DEC_WINAPI_DESKTOP && (!defined(_WIN32_WINNT) || _WIN32_WINNT < 0x0A00)
+#error "UWP build requires _WIN32_WINNT >= 0x0A00 (Windows 10): GetFileSizeEx/CreateFile2/*_FromApp are not available before that"
+#endif
+
 static void mp3dec_close_file(mp3dec_map_info_t *map_info)
 {
     if (map_info->buffer)
@@ -1231,15 +1247,21 @@ static int mp3dec_open_file_h(HANDLE file, mp3dec_map_info_t *map_info)
 
     HANDLE mapping = NULL;
     LARGE_INTEGER s;
-    s.LowPart = GetFileSizeEx(file, &s);
-    if (s.LowPart == INVALID_FILE_SIZE && GetLastError() != NO_ERROR)
+    if (!GetFileSizeEx(file, &s)) /* returns BOOL and fills all 64 bits of s, unlike GetFileSize */
         goto error;
     map_info->size = s.QuadPart;
 
+#if MP3DEC_WINAPI_DESKTOP
     mapping = CreateFileMapping(file, NULL, PAGE_READONLY, 0, 0, NULL);
     if (!mapping)
         goto error;
     map_info->buffer = (const uint8_t*)MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, s.QuadPart);
+#else
+    mapping = CreateFileMappingFromApp(file, NULL, PAGE_READONLY, 0, NULL);
+    if (!mapping)
+        goto error;
+    map_info->buffer = (const uint8_t*)MapViewOfFileFromApp(mapping, FILE_MAP_READ, 0, s.QuadPart);
+#endif
     CloseHandle(mapping);
     if (!map_info->buffer)
         goto error;
@@ -1251,28 +1273,33 @@ error:
     CloseHandle(file);
     return MP3D_E_IOERROR;
 }
-#if !defined(WINAPI_FAMILY) || WINAPI_FAMILY == WINAPI_FAMILY_DESKTOP_APP
-#define __mp3dec_create_file(path, omode, smode, cflags) CreateFileW(path, omode, smode, nullptr, cflags, 0, nullptr)
+#if MP3DEC_WINAPI_DESKTOP
+#define MP3DEC_CREATE_FILE(path, omode, smode, cflags) CreateFileW(path, omode, smode, NULL, cflags, 0, NULL)
 #else
-#define __mp3dec_create_file(path, omode, smode, cflags) CreateFile2(path, omode, smode, cflags, nullptr)
+#define MP3DEC_CREATE_FILE(path, omode, smode, cflags) CreateFile2(path, omode, smode, cflags, NULL)
 #endif
 static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
 {
+    /* the char* API is UTF-8 on Windows; use mp3dec_open_file_w()/mp3dec_*_w() for UTF-16 */
+    wchar_t *file_name_w;
+    int cch;
+    HANDLE file;
     if (!file_name)
         return MP3D_E_PARAM;
-    int cch = ::MultiByteToWideChar(CP_UTF8, 0, file_name, -1, NULL, 0);
+    /* -1 means NUL-terminated input; the returned count includes the terminator */
+    cch = MultiByteToWideChar(CP_UTF8, 0, file_name, -1, NULL, 0);
     if (cch < 2)
         return MP3D_E_PARAM;
-    wchar_t* file_name_w = (wchar_t*)malloc(cch * sizeof(wchar_t*));
+    file_name_w = (wchar_t*)MINIMP3_MALLOC(cch * sizeof(wchar_t));
     if (!file_name_w)
         return MP3D_E_MEMORY;
-    if (::MultiByteToWideChar(CP_UTF8, 0, file_name, cch, file_name_w, cch) != cch)
+    if (MultiByteToWideChar(CP_UTF8, 0, file_name, -1, file_name_w, cch) != cch)
     {
-        free(file_name_w);
+        MINIMP3_FREE((void*)file_name_w);
         return MP3D_E_PARAM;
     }
-    HANDLE file = __mp3dec_create_file(file_name_w, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
-    free(file_name_w);
+    file = MP3DEC_CREATE_FILE(file_name_w, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
+    MINIMP3_FREE((void*)file_name_w);
     if (INVALID_HANDLE_VALUE == file)
         return MP3D_E_IOERROR;
     return mp3dec_open_file_h(file, map_info);
@@ -1280,13 +1307,16 @@ static int mp3dec_open_file(const char *file_name, mp3dec_map_info_t *map_info)
 
 static int mp3dec_open_file_w(const wchar_t *file_name, mp3dec_map_info_t *map_info)
 {
+    HANDLE file;
     if (!file_name)
         return MP3D_E_PARAM;
-    HANDLE file = __mp3dec_create_file(file_name, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
+    file = MP3DEC_CREATE_FILE(file_name, GENERIC_READ, FILE_SHARE_READ, OPEN_EXISTING);
     if (INVALID_HANDLE_VALUE == file)
         return MP3D_E_IOERROR;
     return mp3dec_open_file_h(file, map_info);
 }
+#undef MP3DEC_CREATE_FILE
+#undef MP3DEC_WINAPI_DESKTOP
 #else
 #include <stdio.h>
 

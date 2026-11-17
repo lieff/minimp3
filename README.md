@@ -258,6 +258,8 @@ int mp3dec_ex_open_w(mp3dec_ex_t *dec, const wchar_t *file_name, int seek_method
 ```
 
 Use MINIMP3_NO_STDIO define to exclude STDIO functions.
+On Windows the ``const char*`` file names are expected to be UTF-8 (they are converted with ``MultiByteToWideChar(CP_UTF8, ...)``), use the ``_w`` variants to pass UTF-16 directly.
+UWP (``WINAPI_FAMILY_APP``) builds require ``_WIN32_WINNT >= 0x0A00``.
 MINIMP3_ALLOW_MONO_STEREO_TRANSITION allows mixing mono and stereo in same file.
 In that case ``mp3dec_frame_info_t->channels = 0`` is reported on such files and correct channels number passed to progress_cb callback for each frame in mp3dec_frame_info_t structure.
 MP3D_PROGRESS_CB is optional and can be NULL, example of file decoding:
