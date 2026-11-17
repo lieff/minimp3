@@ -70,7 +70,7 @@ static int16_t read16le(const void *p)
 #ifndef MINIMP3_NO_WAV
 static char *wav_header(int hz, int ch, int bips, int data_bytes)
 {
-    static char hdr[44] = "RIFFsizeWAVEfmt \x10\0\0\0\1\0ch_hz_abpsbabsdatasize";
+    static char hdr[] = "RIFFsizeWAVEfmt \x10\0\0\0\1\0ch_hz_abpsbabsdatasize";
     unsigned long nAvgBytesPerSec = bips*ch*hz >> 3;
     unsigned int nBlockAlign      = bips*ch >> 3;
 
