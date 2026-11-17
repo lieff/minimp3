@@ -29,9 +29,9 @@
 #define MINIMP3_ENABLE_RING 0      /* WIP enable hardware magic ring buffer if available, to make less input buffer memmove(s) in callback IO mode */
 
 #if defined(MINIMP3_MALLOC) && defined(MINIMP3_FREE) && defined(MINIMP3_REALLOC)
-// ok
+/* ok */
 #elif !defined(MINIMP3_MALLOC) && !defined(MINIMP3_FREE) && !defined(MINIMP3_REALLOC)
-// ok
+/* ok */
 #else
 #error "Must define all or none of MINIMP3_MALLOC, MINIMP3_FREE, and MINIMP3_REALLOC."
 #endif
