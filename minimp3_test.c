@@ -436,6 +436,24 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
 #endif
 }
 
+static int count_frames(const uint8_t *buf, int size)
+{
+    mp3dec_t dec;
+    mp3dec_frame_info_t info;
+    int pos = 0, n = 0;
+    mp3dec_init(&dec);
+    while (pos < size && n < 16)
+    {
+        memset(&info, 0, sizeof(info));
+        mp3dec_decode_frame(&dec, buf + pos, size - pos, 0, &info);
+        if (!info.frame_bytes)
+            break;
+        pos += info.frame_bytes;
+        n++;
+    }
+    return n;
+}
+
 static int self_test(const char *input_file_name)
 {
     int ret, size = 0;
@@ -482,6 +500,51 @@ static int self_test(const char *input_file_name)
                 ASSERT(0 == delay && 0 == padding);
             }
         }
+    }
+
+    {
+        /* mp3d_match_frame() must accept a zero-padded or ID3v1 tail as end-of-stream, but must not be fooled by a single zero byte
+           of a genuine frame header nor truncate on a random "TAG". */
+        static const uint8_t fh[4] = { 0xff, 0xfb, 0x92, 0x00 }; /* MPEG-1 Layer III, 128 kbps, 44.1 kHz, stereo; 4th byte is zero */
+        uint8_t s[2 * 418 + 128];
+        int fsz = hdr_frame_bytes(fh, 0) + hdr_padding(fh);
+        ASSERT(418 == fsz);
+#define TWO_FRAMES() do { memset(s, 0xa5, sizeof(s)); memcpy(s, fh, 4); memcpy(s + fsz, fh, 4); } while (0)
+        TWO_FRAMES();
+        ASSERT(1 == mp3d_match_frame(s, 2 * fsz, fsz));            /* two matching frames, exact fit */
+        memset(s + 2 * fsz, 0, 4);
+        ASSERT(1 == mp3d_match_frame(s, 2 * fsz + 4, fsz));         /* zero padding after the last frame */
+        TWO_FRAMES();
+        memcpy(s + 2 * fsz, "TAG", 3);                              /* real ID3v1: 'TAG' + space-padded fields */
+        ASSERT(1 == mp3d_match_frame(s, 2 * fsz + 128, fsz));
+        TWO_FRAMES();
+        ASSERT(0 == mp3d_match_frame(s, 2 * fsz + 4, fsz));         /* garbage tail: must resync, not truncate */
+        memcpy(s + 2 * fsz, "TAG", 3);
+        ASSERT(0 == mp3d_match_frame(s, 2 * fsz + 103, fsz));       /* "TAG" that is not a trailing 128-byte tag */
+#undef TWO_FRAMES
+    }
+
+    {
+        /* A stream shorter than MAX_FRAME_SYNC_MATCHES must decode all of its frames when it ends in padding (A, C)
+           or in an ID3v1 tag (B). */
+        static const uint8_t h128[4] = { 0xff, 0xfb, 0x92, 0x00 }; /* MPEG-1 L3, 128 kbps, 44.1 kHz, stereo, padding */
+        static const uint8_t h64[4]  = { 0xff, 0xfb, 0x50, 0x00 }; /* MPEG-1 L3,  64 kbps: makes the stream VBR      */
+        uint8_t sb[6 * 512 + 128];
+        int s128 = hdr_frame_bytes(h128, 0) + hdr_padding(h128);
+        int s64  = hdr_frame_bytes(h64, 0) + hdr_padding(h64);
+        ASSERT(418 == s128 && 208 == s64);
+        memset(sb, 0xa5, sizeof(sb));
+        memcpy(sb, h128, 4); memcpy(sb + s128, h128, 4);
+        memcpy(sb + 2 * s128, h128, 4); memcpy(sb + 3 * s128, h128, 4);
+        memset(sb + 4 * s128, 0, 4);
+        ASSERT(4 == count_frames(sb, 4 * s128 + 4));               /* A: zero padding after the last frame */
+        memcpy(sb + 4 * s128, "TAG", 3); memset(sb + 4 * s128 + 3, ' ', 125);
+        ASSERT(4 == count_frames(sb, 4 * s128 + 128));             /* B: real ID3v1 tail (space-padded)    */
+        memset(sb, 0xa5, sizeof(sb));
+        memcpy(sb, h128, 4); memcpy(sb + s128, h64, 4);
+        memcpy(sb + s128 + s64, h128, 4); memcpy(sb + 2 * s128 + s64, h64, 4);
+        memset(sb + 2 * s128 + 2 * s64, 0, 4);
+        ASSERT(4 == count_frames(sb, 2 * s128 + 2 * s64 + 4));     /* C: VBR stream with a padded tail     */
     }
 
     ret = mp3dec_detect_buf(0, size);
