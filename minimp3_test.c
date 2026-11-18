@@ -140,26 +140,28 @@ typedef struct
 
 static int frames_iterate_cb(void *user_data, const uint8_t *frame, int frame_size, int free_format_bytes, size_t buf_size, uint64_t offset, mp3dec_frame_info_t *info)
 {
+    frames_iterate_data *d = user_data;
+    int samples;
     (void)buf_size;
     (void)offset;
     (void)free_format_bytes;
-    frames_iterate_data *d = user_data;
     d->info->channels = info->channels;
     d->info->hz       = info->hz;
     d->info->layer    = info->layer;
     /*printf("%d %d %d\n", frame_size, (int)offset, info->channels);*/
     if ((d->allocated - d->info->samples*sizeof(mp3d_sample_t)) < MINIMP3_MAX_SAMPLES_PER_FRAME*sizeof(mp3d_sample_t))
     {
+        mp3d_sample_t *alloc_buf;
         if (!d->allocated)
             d->allocated = 1024*1024;
         else
             d->allocated *= 2;
-        mp3d_sample_t *alloc_buf = realloc(d->info->buffer, d->allocated);
+        alloc_buf = realloc(d->info->buffer, d->allocated);
         if (!alloc_buf)
             return MP3D_E_MEMORY;
         d->info->buffer = alloc_buf;
     }
-    int samples = mp3dec_decode_frame(d->mp3d, frame, frame_size, d->info->buffer + d->info->samples, info);
+    samples = mp3dec_decode_frame(d->mp3d, frame, frame_size, d->info->buffer + d->info->samples, info);
     if (samples)
     {
         d->info->samples += samples*info->channels;
@@ -183,6 +185,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     int no_std_vec = strstr(input_file_name, "nonstandard") || strstr(input_file_name, "ILL");
     uint8_t *buf = 0;
     double MSE = 0.0, psnr;
+    int16_t *buffer;
 
     mp3dec_io_t io;
     mp3dec_file_info_t info;
@@ -203,15 +206,19 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     } else if (MODE_LOAD_CB == mode)
     {
         uint8_t *io_buf = malloc(MINIMP3_IO_SIZE);
+        FILE *file;
         FAIL_MEM(io_buf);
-        FILE *file = fopen(input_file_name, "rb");
+        file = fopen(input_file_name, "rb");
         io.read_data = io.seek_data = file;
         res = file ? mp3dec_load_cb(&mp3d, &io, io_buf, MINIMP3_IO_SIZE, &info, 0, 0) : MP3D_E_IOERROR;
         fclose((FILE*)io.read_data);
         free(io_buf);
     } else if (MODE_ITERATE == mode)
     {
-        frames_iterate_data d = { &mp3d, &info, 0 };
+        frames_iterate_data d;
+        d.mp3d = &mp3d;
+        d.info = &info;
+        d.allocated = 0;
         mp3dec_init(&mp3d);
         res = mp3dec_iterate(input_file_name, frames_iterate_cb, &d);
     } else if (MODE_ITERATE_BUF == mode)
@@ -219,18 +226,25 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         int size = 0;
         FILE *file = fopen(input_file_name, "rb");
         uint8_t *buf = preload(file, &size);
+        frames_iterate_data d;
         fclose(file);
-        frames_iterate_data d = { &mp3d, &info, 0 };
+        d.mp3d = &mp3d;
+        d.info = &info;
+        d.allocated = 0;
         mp3dec_init(&mp3d);
         res = buf ? mp3dec_iterate_buf(buf, size, frames_iterate_cb, &d) : MP3D_E_IOERROR;
         free(buf);
     } else if (MODE_ITERATE_CB == mode)
     {
         uint8_t *io_buf = malloc(MINIMP3_IO_SIZE);
+        FILE *file;
+        frames_iterate_data d;
         FAIL_MEM(io_buf);
-        FILE *file = fopen(input_file_name, "rb");
+        file = fopen(input_file_name, "rb");
         io.read_data = io.seek_data = file;
-        frames_iterate_data d = { &mp3d, &info, 0 };
+        d.mp3d = &mp3d;
+        d.info = &info;
+        d.allocated = 0;
         mp3dec_init(&mp3d);
         res = file ? mp3dec_iterate_cb(&io, io_buf, MINIMP3_IO_SIZE, frames_iterate_cb, &d) : MP3D_E_IOERROR;
         fclose((FILE*)io.read_data);
@@ -239,6 +253,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
     {
         mp3dec_ex_t dec;
         size_t readed;
+        int samples, samples_readed = 0;
         if (MODE_STREAM == mode)
         {
             res = mp3dec_ex_open(&dec, input_file_name, (seek_to_byte ? MP3D_SEEK_TO_BYTE : MP3D_SEEK_TO_SAMPLE) | MP3D_ALLOW_MONO_STEREO_TRANSITION);
@@ -284,8 +299,9 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
                 position = 0;
             if (!seek_to_byte)
             {
+                int skip_ref;
                 info.samples -= MINIMP3_MIN(info.samples, (size_t)position);
-                int skip_ref = MINIMP3_MIN((size_t)ref_size, position*sizeof(int16_t));
+                skip_ref = MINIMP3_MIN((size_t)ref_size, position*sizeof(int16_t));
                 buf_ref  += skip_ref;
                 ref_size -= skip_ref;
             }
@@ -303,7 +319,7 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         }
         if (0 == portion)
             portion = info.samples;
-        int samples = info.samples, samples_readed = 0;
+        samples = info.samples, samples_readed = 0;
         while (samples)
         {
             int to_read = MINIMP3_MIN(samples, portion);
@@ -348,8 +364,9 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         } else if (MODE_DETECT_CB == mode)
         {
             uint8_t *io_buf = malloc(MINIMP3_BUF_SIZE);
+            FILE *file;
             FAIL_MEM(io_buf);
-            FILE *file = fopen(input_file_name, "rb");
+            file = fopen(input_file_name, "rb");
             io.read_data = io.seek_data = file;
             res = file ? mp3dec_detect_cb(&io, io_buf, MINIMP3_BUF_SIZE) : MP3D_E_IOERROR;
             free(io_buf);
@@ -376,12 +393,12 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         exit(1);
     }
 #ifdef MINIMP3_FLOAT_OUTPUT
-    int16_t *buffer = malloc(info.samples*sizeof(int16_t));
+    buffer = malloc(info.samples*sizeof(int16_t));
     FAIL_MEM(buffer);
     mp3dec_f32_to_s16(info.buffer, buffer, info.samples);
     free(info.buffer);
 #else
-    int16_t *buffer = info.buffer;
+    buffer = info.buffer;
 #endif
 #ifndef MINIMP3_NO_WAV
     if (wave_out && file_out)
@@ -394,12 +411,13 @@ static void decode_file(const char *input_file_name, const unsigned char *buf_re
         int len_match = ref_samples == info.samples;
         int relaxed_len_match = len_match || (ref_samples + 1152) == info.samples || (ref_samples + 2304) == info.samples;
         int seek_len_match = (ref_samples <= info.samples) || (ref_samples + 2304) >= info.samples;
+        int max_samples;
         if ((((!relaxed_len_match && MODE_STREAM != mode && MODE_STREAM_BUF != mode && MODE_STREAM_CB != mode) || !seek_len_match) && (3 == info.layer || 0 == info.layer) && !no_std_vec) || (no_std_vec && !len_match))
         {   /* some standard vectors are for some reason a little shorter */
             printf("error: reference and produced number of samples do not match (%d/%d)\n", (int)ref_samples, (int)info.samples);
             exit(1);
         }
-        int max_samples = MINIMP3_MIN(ref_samples, info.samples);
+        max_samples = MINIMP3_MIN(ref_samples, info.samples);
         for (i = 0; i < max_samples; i++)
         {
             int MSEtemp = abs((int)buffer[i] - (int)(int16_t)read16le(&buf_ref[i*sizeof(int16_t)]));
@@ -464,8 +482,12 @@ static int self_test(const char *input_file_name)
     mp3dec_io_t io;
     FILE *file = fopen(input_file_name, "rb");
     uint8_t *buf = preload(file, &size);
+    int samples;
+    mp3d_sample_t sample;
+    size_t readed;
+
     fclose(file);
-    int samples = mp3dec_decode_frame(&mp3d, buf, size, 0, &frame_info);
+    samples = mp3dec_decode_frame(&mp3d, buf, size, 0, &frame_info);
 #define ASSERT(c) if (!(c)) { printf("failed, line=%d\n", __LINE__); exit(1); }
     ASSERT(1152 == samples);
 
@@ -646,7 +668,7 @@ static int self_test(const char *input_file_name)
             total += r;
         } while (r);
         ASSERT(2304 == total);
-        ret = mp3dec_ex_seek(&dec, 3888454656ULL);
+        ret = mp3dec_ex_seek(&dec, (uint64_t)3888454656);
         ASSERT(0 == ret);
         r = mp3dec_ex_read(&dec, pcm, MINIMP3_MAX_SAMPLES_PER_FRAME);
         ASSERT(0 == r);
@@ -717,8 +739,7 @@ static int self_test(const char *input_file_name)
     ASSERT(5 == io_num);
     ASSERT(725760 == dec.samples); /* num samples detected */
     fail_io_num = 5;
-    mp3d_sample_t sample;
-    size_t readed = mp3dec_ex_read(&dec, &sample, 1);
+    readed = mp3dec_ex_read(&dec, &sample, 1);
     ASSERT(0 == readed);
     ASSERT(MP3D_E_IOERROR == dec.last_error);
     readed = mp3dec_ex_read(&dec, &sample, 1);
@@ -759,6 +780,15 @@ int main(int argc, char *argv[])
 #endif
 {
     int i, ref_size, do_self_test = 0;
+    char *ref_file_name;
+    char *output_file_name;
+    char *input_file_name;
+    FILE *file_out = NULL;
+    FILE *file_ref;
+    unsigned char *buf_ref;
+#ifndef MINIMP3_NO_WAV
+    char *ext;
+#endif
     for(i = 1; i < argc; i++)
     {
         if (argv[i][0] != '-')
@@ -779,27 +809,26 @@ int main(int argc, char *argv[])
             return 1;
         }
     }
-    char *ref_file_name    = (argc > (i + 1)) ? argv[i + 1] : NULL;
-    char *output_file_name = (argc > (i + 2)) ? argv[i + 2] : NULL;
-    FILE *file_out = NULL;
+    ref_file_name    = (argc > (i + 1)) ? argv[i + 1] : NULL;
+    output_file_name = (argc > (i + 2)) ? argv[i + 2] : NULL;
     if (output_file_name)
     {
         file_out = fopen(output_file_name, "wb");
 #ifndef MINIMP3_NO_WAV
-        char *ext = strrchr(output_file_name, '.');
+        ext = strrchr(output_file_name, '.');
         if (ext && !strcasecmp(ext + 1, "wav"))
             wave_out = 1;
 #endif
     }
-    FILE *file_ref = ref_file_name ? fopen(ref_file_name, "rb") : NULL;
-    unsigned char *buf_ref = preload(file_ref, &ref_size);
+    file_ref = ref_file_name ? fopen(ref_file_name, "rb") : NULL;
+    buf_ref = preload(file_ref, &ref_size);
     if (file_ref)
         fclose(file_ref);
 #ifdef __AFL_HAVE_MANUAL_CONTROL
     __AFL_INIT();
     while (__AFL_LOOP(1000)) {
 #endif
-    char *input_file_name  = (argc > i) ? argv[i] : NULL;
+    input_file_name  = (argc > i) ? argv[i] : NULL;
     if (!input_file_name)
     {
         printf("error: no file names given\n");

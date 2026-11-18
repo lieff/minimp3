@@ -531,8 +531,8 @@ static int L3_read_side_info(bs_t *bs, L3_gr_info_t *gr, const uint8_t *hdr)
 
     unsigned tables, scfsi = 0;
     int main_data_begin, part_23_sum = 0;
-    int sr_idx = HDR_GET_MY_SAMPLE_RATE(hdr); sr_idx -= (sr_idx != 0);
     int gr_count = HDR_IS_MONO(hdr) ? 1 : 2;
+    int sr_idx = HDR_GET_MY_SAMPLE_RATE(hdr); sr_idx -= (sr_idx != 0);
 
     if (HDR_TEST_MPEG1(hdr))
     {
@@ -1454,14 +1454,15 @@ static void mp3d_DCT_II(float *grbuf, int n)
 #ifndef MINIMP3_FLOAT_OUTPUT
 static int16_t mp3d_scale_pcm(float sample)
 {
+    int16_t s;
 #if HAVE_ARMV6
     int32_t s32 = (int32_t)(sample + .5f);
     s32 -= (s32 < 0);
-    int16_t s = (int16_t)minimp3_clip_int16_arm(s32);
+    s = (int16_t)minimp3_clip_int16_arm(s32);
 #else
     if (sample >=  32766.5) return (int16_t) 32767;
     if (sample <= -32767.5) return (int16_t)-32768;
-    int16_t s = (int16_t)(sample + .5f);
+    s = (int16_t)(sample + .5f);
     s -= (s < 0);   /* away from zero, to be compliant */
 #endif
     return s;
