@@ -289,7 +289,7 @@ int mp3dec_detect_buf(const uint8_t *buf, size_t buf_size)
 
 int mp3dec_detect_cb(mp3dec_io_t *io, uint8_t *buf, size_t buf_size)
 {
-    int free_format_bytes, frame_size;
+    int free_format_bytes = 0, frame_size;
     size_t filled;
     if (!buf || (size_t)-1 == buf_size || (io && buf_size < MINIMP3_BUF_SIZE))
         return MP3D_E_PARAM;
