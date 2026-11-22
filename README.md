@@ -267,12 +267,18 @@ MP3D_PROGRESS_CB is optional and can be NULL, example of file decoding:
 ```c
     mp3dec_t mp3d;
     mp3dec_file_info_t info;
-    if (mp3dec_load(&mp3d, input_file_name, &info, NULL, NULL))
+    int res = mp3dec_load(&mp3d, input_file_name, &info, NULL, NULL);
+    if (res)
     {
-        /* error */
+        /* Error (e.g. corrupted file or unsupported format change).
+           Note: info.buffer may still contain partially decoded samples!
+           Always free(info.buffer) to prevent memory leaks. */
+        free(info.buffer);
+        /* handle error, then continue or return as appropriate */
     }
-    /* mp3dec_file_info_t contains decoded samples and info,
-       use free(info.buffer) to deallocate samples */
+    /* mp3dec_file_info_t contains decoded samples and info */
+    /* ... process audio ... */
+    free(info.buffer);
 ```
 
 Example of file decoding with seek capability:
